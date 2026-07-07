@@ -21,8 +21,7 @@ export function Pagination({ offset, limit, total, onPage }: PaginationProps) {
   for (let i = start; i <= end; i++) pages.push(i);
 
   return (
-    <div className="flex items-center justify-between mt-4">
-      <span className="text-sm text-gray-400">{total} records</span>
+    <div className="flex items-center justify-end mt-4">
       <div className="flex items-center gap-1">
         <button
           onClick={() => onPage(Math.max(0, offset - limit))}
