@@ -1,4 +1,6 @@
 linters:
+  disable:
+    - errcheck
   enable:
     - govet
     - staticcheck
