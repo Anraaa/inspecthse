@@ -11,13 +11,13 @@ import (
 )
 
 type patrolService struct {
-	patrolRepo        repository.PatrolRepository
-	detailRepo        repository.PatrolDetailRepository
-	attachmentRepo    repository.PatrolAttachmentRepository
-	assetRepo         repository.AssetRepository
-	alertSvc          AlertService
-	activityLogRepo   repository.ActivityLogRepository
-	userRepo          repository.UserRepository
+	patrolRepo      repository.PatrolRepository
+	detailRepo      repository.PatrolDetailRepository
+	attachmentRepo  repository.PatrolAttachmentRepository
+	assetRepo       repository.AssetRepository
+	alertSvc        AlertService
+	activityLogRepo repository.ActivityLogRepository
+	userRepo        repository.UserRepository
 }
 
 func NewPatrolService(

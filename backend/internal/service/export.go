@@ -135,7 +135,7 @@ func (s *exportService) ExportChecksheet(ctx context.Context, year int, category
 
 	// Styles
 	headerStyle, _ := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Bold: true, Size: 11},
+		Font:      &excelize.Font{Bold: true, Size: 11},
 		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
 		Border: []excelize.Border{
 			{Type: "left", Color: "000000", Style: 1},
@@ -158,7 +158,7 @@ func (s *exportService) ExportChecksheet(ctx context.Context, year int, category
 
 	approvedStyle, _ := f.NewStyle(&excelize.Style{
 		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
-		Font: &excelize.Font{Color: "16A34A", Bold: true, Size: 14},
+		Font:      &excelize.Font{Color: "16A34A", Bold: true, Size: 14},
 		Border: []excelize.Border{
 			{Type: "left", Color: "000000", Style: 1},
 			{Type: "right", Color: "000000", Style: 1},
@@ -169,7 +169,7 @@ func (s *exportService) ExportChecksheet(ctx context.Context, year int, category
 
 	rejectedStyle, _ := f.NewStyle(&excelize.Style{
 		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
-		Font: &excelize.Font{Color: "DC2626", Bold: true, Size: 14},
+		Font:      &excelize.Font{Color: "DC2626", Bold: true, Size: 14},
 		Border: []excelize.Border{
 			{Type: "left", Color: "000000", Style: 1},
 			{Type: "right", Color: "000000", Style: 1},
@@ -180,7 +180,7 @@ func (s *exportService) ExportChecksheet(ctx context.Context, year int, category
 
 	waitingStyle, _ := f.NewStyle(&excelize.Style{
 		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
-		Font: &excelize.Font{Color: "CA8A04", Bold: true, Size: 14},
+		Font:      &excelize.Font{Color: "CA8A04", Bold: true, Size: 14},
 		Border: []excelize.Border{
 			{Type: "left", Color: "000000", Style: 1},
 			{Type: "right", Color: "000000", Style: 1},
@@ -191,7 +191,7 @@ func (s *exportService) ExportChecksheet(ctx context.Context, year int, category
 
 	emptyStyle, _ := f.NewStyle(&excelize.Style{
 		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
-		Font: &excelize.Font{Color: "9CA3AF", Size: 14},
+		Font:      &excelize.Font{Color: "9CA3AF", Size: 14},
 		Border: []excelize.Border{
 			{Type: "left", Color: "000000", Style: 1},
 			{Type: "right", Color: "000000", Style: 1},
@@ -227,9 +227,9 @@ func (s *exportService) ExportChecksheet(ctx context.Context, year int, category
 
 	// Query patrols with date range
 	patrols, _, err := s.patrolRepo.List(ctx, map[string]interface{}{
-		"asset_ids":  assetIDs,
-		"date_from":  startOfYear.Format("2006-01-02"),
-		"date_to":    endOfYear.Format("2006-01-02"),
+		"asset_ids": assetIDs,
+		"date_from": startOfYear.Format("2006-01-02"),
+		"date_to":   endOfYear.Format("2006-01-02"),
 	}, 0, 10000)
 	if err == nil {
 		for _, p := range patrols {
@@ -268,11 +268,11 @@ func (s *exportService) ExportChecksheet(ctx context.Context, year int, category
 				if patrol.SubmittedAt != nil && patrol.SubmittedAt.Year() == year {
 					paramName := fmt.Sprintf("Param #%d", d.HSEParameterID)
 					anomalies = append(anomalies, AnomalyRecord{
-						Date:     patrol.SubmittedAt.Format("2006-01-02"),
-						Asset:    getAssetName(assets, patrol.AssetID),
+						Date:      patrol.SubmittedAt.Format("2006-01-02"),
+						Asset:     getAssetName(assets, patrol.AssetID),
 						Parameter: paramName,
-						Value:    d.Value,
-						Notes:    d.Notes,
+						Value:     d.Value,
+						Notes:     d.Notes,
 					})
 				}
 			}
@@ -455,8 +455,8 @@ func (s *exportService) DownloadImportTemplate(ctx context.Context) ([]byte, err
 	}
 
 	headerStyle, _ := f.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Bold: true, Color: "FFFFFF", Size: 11},
-		Fill: excelize.Fill{Type: "pattern", Color: []string{"#2563EB"}, Pattern: 1},
+		Font:      &excelize.Font{Bold: true, Color: "FFFFFF", Size: 11},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"#2563EB"}, Pattern: 1},
 		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
 		Border: []excelize.Border{
 			{Type: "left", Color: "000000", Style: 1},
@@ -486,9 +486,9 @@ func (s *exportService) DownloadImportTemplate(ctx context.Context) ([]byte, err
 	// Add data validation for category column
 	categoryRange := colLetters[1] + "6:" + colLetters[1] + "1005"
 	_ = f.AddDataValidation(sheet, &excelize.DataValidation{
-		Type: "list",
+		Type:     "list",
 		Formula1: `"APAR,HYDRANT,FIRE_ALARM"`,
-		Sqref: categoryRange,
+		Sqref:    categoryRange,
 	})
 
 	// Auto fit columns
@@ -522,7 +522,7 @@ func (s *exportService) ImportAssets(ctx context.Context, file []byte) (*ImportR
 	}
 
 	headers := rows[0]
-	
+
 	// Map column index to field
 	colMap := make(map[string]int)
 	for i, h := range headers {
@@ -598,10 +598,10 @@ func (s *exportService) ImportAssets(ctx context.Context, file []byte) (*ImportR
 				fieldName = "location_id"
 			}
 			result.Errors = append(result.Errors, ImportError{
-				Row:    lineNum,
-				Field:  "required",
-				Value:  "",
-				Error:  fmt.Sprintf("kolom wajib (name, category, serial_number, %s) tidak boleh kosong", fieldName),
+				Row:   lineNum,
+				Field: "required",
+				Value: "",
+				Error: fmt.Sprintf("kolom wajib (name, category, serial_number, %s) tidak boleh kosong", fieldName),
 			})
 			continue
 		}
@@ -617,10 +617,10 @@ func (s *exportService) ImportAssets(ctx context.Context, file []byte) (*ImportR
 			cat = model.AssetCategoryFireAlarm
 		default:
 			result.Errors = append(result.Errors, ImportError{
-				Row:    lineNum,
-				Field:  "category",
-				Value:  category,
-				Error:  "kategori tidak valid (APAR, HYDRANT, FIRE_ALARM)",
+				Row:   lineNum,
+				Field: "category",
+				Value: category,
+				Error: "kategori tidak valid (APAR, HYDRANT, FIRE_ALARM)",
 			})
 			continue
 		}
@@ -631,20 +631,20 @@ func (s *exportService) ImportAssets(ctx context.Context, file []byte) (*ImportR
 			id, err := strconv.ParseInt(locationName, 10, 64)
 			if err != nil {
 				result.Errors = append(result.Errors, ImportError{
-					Row:    lineNum,
-					Field:  "location_id",
-					Value:  locationName,
-					Error:  "location_id harus angka",
+					Row:   lineNum,
+					Field: "location_id",
+					Value: locationName,
+					Error: "location_id harus angka",
 				})
 				continue
 			}
 			loc, err := s.locationRepo.FindByID(ctx, id)
 			if err != nil || loc == nil {
 				result.Errors = append(result.Errors, ImportError{
-					Row:    lineNum,
-					Field:  "location_id",
-					Value:  locationName,
-					Error:  "lokasi tidak ditemukan",
+					Row:   lineNum,
+					Field: "location_id",
+					Value: locationName,
+					Error: "lokasi tidak ditemukan",
 				})
 				continue
 			}
@@ -653,10 +653,10 @@ func (s *exportService) ImportAssets(ctx context.Context, file []byte) (*ImportR
 			loc, err := s.locationRepo.FindByName(ctx, locationName)
 			if err != nil || loc == nil {
 				result.Errors = append(result.Errors, ImportError{
-					Row:    lineNum,
-					Field:  "location",
-					Value:  locationName,
-					Error:  "lokasi tidak ditemukan. Pastikan nama lokasi sesuai dengan master data.",
+					Row:   lineNum,
+					Field: "location",
+					Value: locationName,
+					Error: "lokasi tidak ditemukan. Pastikan nama lokasi sesuai dengan master data.",
 				})
 				continue
 			}
@@ -668,10 +668,10 @@ func (s *exportService) ImportAssets(ctx context.Context, file []byte) (*ImportR
 			user, err := s.userRepo.FindByName(ctx, picName)
 			if err != nil || user == nil {
 				result.Errors = append(result.Errors, ImportError{
-					Row:    lineNum,
-					Field:  "pic",
-					Value:  picName,
-					Error:  "PIC tidak ditemukan. Pastikan nama PIC sesuai dengan data user.",
+					Row:   lineNum,
+					Field: "pic",
+					Value: picName,
+					Error: "PIC tidak ditemukan. Pastikan nama PIC sesuai dengan data user.",
 				})
 				continue
 			}
@@ -683,10 +683,10 @@ func (s *exportService) ImportAssets(ctx context.Context, file []byte) (*ImportR
 			sec, err := s.sectionRepo.FindByName(ctx, sectionName)
 			if err != nil || sec == nil {
 				result.Errors = append(result.Errors, ImportError{
-					Row:    lineNum,
-					Field:  "section",
-					Value:  sectionName,
-					Error:  "section tidak ditemukan. Pastikan nama section sesuai dengan master data.",
+					Row:   lineNum,
+					Field: "section",
+					Value: sectionName,
+					Error: "section tidak ditemukan. Pastikan nama section sesuai dengan master data.",
 				})
 				continue
 			}
@@ -708,10 +708,10 @@ func (s *exportService) ImportAssets(ctx context.Context, file []byte) (*ImportR
 			}
 			if !parsedOk {
 				result.Errors = append(result.Errors, ImportError{
-					Row:    lineNum,
-					Field:  "expired_at",
-					Value:  expiredAtStr,
-					Error:  "format tanggal tidak valid (gunakan YYYY-MM-DD)",
+					Row:   lineNum,
+					Field: "expired_at",
+					Value: expiredAtStr,
+					Error: "format tanggal tidak valid (gunakan YYYY-MM-DD)",
 				})
 				continue
 			}
@@ -737,10 +737,10 @@ func (s *exportService) ImportAssets(ctx context.Context, file []byte) (*ImportR
 
 		if err := s.assetRepo.Create(ctx, asset); err != nil {
 			result.Errors = append(result.Errors, ImportError{
-				Row:    lineNum,
-				Field:  "all",
-				Value:  name,
-				Error:  err.Error(),
+				Row:   lineNum,
+				Field: "all",
+				Value: name,
+				Error: err.Error(),
 			})
 			continue
 		}

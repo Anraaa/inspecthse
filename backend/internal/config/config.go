@@ -19,7 +19,7 @@ type Config struct {
 	JWTAccessExpiry  string
 	JWTRefreshExpiry string
 
-	UploadDir  string
+	UploadDir   string
 	MaxFileSize int64
 }
 

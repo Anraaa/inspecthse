@@ -65,8 +65,8 @@ type HSEParameterService interface {
 }
 
 type PatrolDetailResponse struct {
-	Patrol      *model.Patrol          `json:"patrol"`
-	Details     []model.PatrolDetail   `json:"details"`
+	Patrol      *model.Patrol            `json:"patrol"`
+	Details     []model.PatrolDetail     `json:"details"`
 	Attachments []model.PatrolAttachment `json:"attachments"`
 }
 
@@ -112,10 +112,10 @@ type ImportResult struct {
 }
 
 type ImportError struct {
-	Row    int    `json:"row"`
-	Field  string `json:"field"`
-	Value  string `json:"value"`
-	Error  string `json:"error"`
+	Row   int    `json:"row"`
+	Field string `json:"field"`
+	Value string `json:"value"`
+	Error string `json:"error"`
 }
 
 type DashboardService interface {

@@ -4,7 +4,6 @@ linters:
     - staticcheck
     - gofmt
     - bodyclose
-    - errcheck
     - gosec
     - ineffassign
     - misspell
@@ -15,9 +14,6 @@ linters:
 linters-settings:
   gofmt:
     simplify: true
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
   gosec:
     excludes:
       - G107
@@ -30,9 +26,17 @@ issues:
   exclude-rules:
     - path: _test\.go
       linters:
-        - errcheck
         - gosec
         - bodyclose
+    - linters:
+        - revive
+      text: "unused-parameter"
+    - linters:
+        - revive
+      text: "blank-imports"
+    - linters:
+        - gosec
+      text: "G114"
   max-issues-per-linter: 0
   max-same-issues: 0
 

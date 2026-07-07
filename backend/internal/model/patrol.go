@@ -5,11 +5,11 @@ import "time"
 type PatrolStatus string
 
 const (
-	PatrolStatusDraft          PatrolStatus = "draft"
-	PatrolStatusSubmitted      PatrolStatus = "submitted"
+	PatrolStatusDraft           PatrolStatus = "draft"
+	PatrolStatusSubmitted       PatrolStatus = "submitted"
 	PatrolStatusWaitingApproval PatrolStatus = "waiting_approval"
-	PatrolStatusApproved       PatrolStatus = "approved"
-	PatrolStatusRejected       PatrolStatus = "rejected"
+	PatrolStatusApproved        PatrolStatus = "approved"
+	PatrolStatusRejected        PatrolStatus = "rejected"
 )
 
 type Patrol struct {
@@ -46,12 +46,12 @@ type PatrolAttachment struct {
 }
 
 type Alert struct {
-	ID        int64      `db:"id" json:"id"`
-	PatrolID  int64      `db:"patrol_id" json:"patrol_id"`
-	AssetID   int64      `db:"asset_id" json:"asset_id"`
-	PICID     int64      `db:"pic_id" json:"pic_id"`
-	Message   string     `db:"message" json:"message"`
-	IsRead    bool       `db:"is_read" json:"is_read"`
+	ID         int64      `db:"id" json:"id"`
+	PatrolID   int64      `db:"patrol_id" json:"patrol_id"`
+	AssetID    int64      `db:"asset_id" json:"asset_id"`
+	PICID      int64      `db:"pic_id" json:"pic_id"`
+	Message    string     `db:"message" json:"message"`
+	IsRead     bool       `db:"is_read" json:"is_read"`
 	ResolvedAt *time.Time `db:"resolved_at" json:"resolved_at"`
-	CreatedAt time.Time  `db:"created_at" json:"created_at"`
+	CreatedAt  time.Time  `db:"created_at" json:"created_at"`
 }
