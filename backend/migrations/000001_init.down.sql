@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS activity_logs;
+DROP TABLE IF EXISTS alerts;
+DROP TABLE IF EXISTS patrol_attachments;
+DROP TABLE IF EXISTS patrol_details;
+DROP TABLE IF EXISTS patrols;
+DROP TABLE IF EXISTS hse_parameters;
+DROP TABLE IF EXISTS assets;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS shifts;
+DROP TABLE IF EXISTS locations;
+DROP TABLE IF EXISTS sections;
