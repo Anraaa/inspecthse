@@ -10,11 +10,12 @@ import (
 )
 
 type userService struct {
-	repo repository.UserRepository
+	repo   repository.UserRepository
+	logSvc ActivityLogService
 }
 
-func NewUserService(repo repository.UserRepository) UserService {
-	return &userService{repo: repo}
+func NewUserService(repo repository.UserRepository, logSvc ActivityLogService) UserService {
+	return &userService{repo: repo, logSvc: logSvc}
 }
 
 func (s *userService) Create(ctx context.Context, user *model.User) error {
@@ -29,7 +30,12 @@ func (s *userService) Create(ctx context.Context, user *model.User) error {
 	}
 	user.Password = string(hash)
 
-	return s.repo.Create(ctx, user)
+	err = s.repo.Create(ctx, user)
+	if err != nil {
+		return err
+	}
+	s.logSvc.Log(ctx, getCurrentUserID(ctx), "create", "user", user.ID, "", user.Email, false)
+	return nil
 }
 
 func (s *userService) Update(ctx context.Context, user *model.User) error {
@@ -40,7 +46,17 @@ func (s *userService) Update(ctx context.Context, user *model.User) error {
 		}
 		user.Password = string(hash)
 	}
-	return s.repo.Update(ctx, user)
+	old, _ := s.repo.FindByID(ctx, user.ID)
+	err := s.repo.Update(ctx, user)
+	if err != nil {
+		return err
+	}
+	oldVal := ""
+	if old != nil {
+		oldVal = old.Email
+	}
+	s.logSvc.Log(ctx, getCurrentUserID(ctx), "update", "user", user.ID, oldVal, user.Email, false)
+	return nil
 }
 
 func (s *userService) GetByID(ctx context.Context, id int64) (*model.User, error) {

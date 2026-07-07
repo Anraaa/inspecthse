@@ -206,6 +206,34 @@ export function ExportPage() {
     }
   };
 
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await api.get("/import/template", {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "template_import_aset.xlsx";
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error("Gagal mengunduh template", err);
+      let msg = "Gagal mengunduh template import.";
+      if (err.response) {
+        if (err.response.data instanceof Blob) {
+          const text = await err.response.data.text();
+          msg += ` (${err.response.status}: ${text})`;
+        } else {
+          msg += ` (${err.response.status})`;
+        }
+      } else if (err.message) {
+        msg += ` (${err.message})`;
+      }
+      alert(msg);
+    }
+  };
+
   const clearHistory = () => {
     if (confirm("Hapus seluruh riwayat export?")) {
       setHistory([]);
@@ -533,7 +561,17 @@ export function ExportPage() {
         /* Import Tab */
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6">
-            <h3 className="text-lg font-bold text-gray-900">Unggah Berkas Master Data Aset</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Unggah Berkas Master Data Aset</h3>
+              <button
+                onClick={handleDownloadTemplate}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white shadow-md hover:opacity-95 transition-all"
+                style={{ backgroundColor: theme.colors[500] }}
+              >
+                <Download className="w-4 h-4" />
+                Download Template
+              </button>
+            </div>
 
             {/* Drag & Drop zone */}
             <div

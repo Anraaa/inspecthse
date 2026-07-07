@@ -14,23 +14,49 @@ import (
 )
 
 type locationService struct {
-	repo repository.LocationRepository
+	repo   repository.LocationRepository
+	logSvc ActivityLogService
 }
 
-func NewLocationService(repo repository.LocationRepository) LocationService {
-	return &locationService{repo: repo}
+func NewLocationService(repo repository.LocationRepository, logSvc ActivityLogService) LocationService {
+	return &locationService{repo: repo, logSvc: logSvc}
 }
 
 func (s *locationService) Create(ctx context.Context, location *model.Location) error {
-	return s.repo.Create(ctx, location)
+	err := s.repo.Create(ctx, location)
+	if err != nil {
+		return err
+	}
+	s.logSvc.Log(ctx, getCurrentUserID(ctx), "create", "location", location.ID, "", location.Name, false)
+	return nil
 }
 
 func (s *locationService) Update(ctx context.Context, location *model.Location) error {
-	return s.repo.Update(ctx, location)
+	old, _ := s.repo.FindByID(ctx, location.ID)
+	err := s.repo.Update(ctx, location)
+	if err != nil {
+		return err
+	}
+	oldVal := ""
+	if old != nil {
+		oldVal = old.Name
+	}
+	s.logSvc.Log(ctx, getCurrentUserID(ctx), "update", "location", location.ID, oldVal, location.Name, false)
+	return nil
 }
 
 func (s *locationService) Delete(ctx context.Context, id int64) error {
-	return s.repo.Delete(ctx, id)
+	old, _ := s.repo.FindByID(ctx, id)
+	err := s.repo.Delete(ctx, id)
+	if err != nil {
+		return err
+	}
+	oldVal := ""
+	if old != nil {
+		oldVal = old.Name
+	}
+	s.logSvc.Log(ctx, getCurrentUserID(ctx), "delete", "location", id, oldVal, "", false)
+	return nil
 }
 
 func (s *locationService) GetByID(ctx context.Context, id int64) (*model.Location, error) {

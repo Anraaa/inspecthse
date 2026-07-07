@@ -35,6 +35,18 @@ func (h *ExportHandler) ExportChecksheet(w http.ResponseWriter, r *http.Request)
 	w.Write(data)
 }
 
+func (h *ExportHandler) DownloadImportTemplate(w http.ResponseWriter, r *http.Request) {
+	data, err := h.svc.DownloadImportTemplate(r.Context())
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", "attachment; filename=template_import_aset.xlsx")
+	w.Write(data)
+}
+
 func (h *ExportHandler) ImportAssets(w http.ResponseWriter, r *http.Request) {
 	// Parse input file up to 10MB
 	if err := r.ParseMultipartForm(10 << 20); err != nil {

@@ -11,7 +11,7 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 )
 
-func New(cfg *config.Config, authH *handler.AuthHandler, assetH *handler.AssetHandler, patrolH *handler.PatrolHandler, masterH *handler.MasterDataHandler, dashH *handler.DashboardHandler, exportH *handler.ExportHandler) *chi.Mux {
+func New(cfg *config.Config, authH *handler.AuthHandler, assetH *handler.AssetHandler, patrolH *handler.PatrolHandler, masterH *handler.MasterDataHandler, dashH *handler.DashboardHandler, exportH *handler.ExportHandler, alertH *handler.AlertHandler) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(chimw.Logger)
@@ -47,6 +47,13 @@ func New(cfg *config.Config, authH *handler.AuthHandler, assetH *handler.AssetHa
 			r.Post("/patrols", patrolH.Submit)
 			r.Get("/patrols", patrolH.List)
 			r.Get("/patrols/{id}", patrolH.GetByID)
+			r.Post("/uploads", patrolH.UploadFile)
+
+			// Alerts
+			r.Get("/alerts", alertH.List)
+			r.Get("/alerts/unread-count", alertH.UnreadCount)
+			r.Put("/alerts/read-all", alertH.MarkAllAsRead)
+			r.Put("/alerts/{id}/read", alertH.MarkAsRead)
 
 			// Approval - HSE only
 			r.Group(func(r chi.Router) {
@@ -105,6 +112,9 @@ func New(cfg *config.Config, authH *handler.AuthHandler, assetH *handler.AssetHa
 				r.Put("/patrols/{id}/ghost-edit", patrolH.GhostEdit)
 			})
 
+			// Import template - all authenticated users
+			r.Get("/import/template", exportH.DownloadImportTemplate)
+
 			// Export - Super Admin only
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.RBACMiddleware(string(model.RoleSuperAdmin)))
@@ -113,6 +123,10 @@ func New(cfg *config.Config, authH *handler.AuthHandler, assetH *handler.AssetHa
 			})
 		})
 	})
+
+	// Static uploads server
+	fileServer := http.FileServer(http.Dir("./uploads"))
+	r.Handle("/uploads/*", http.StripPrefix("/uploads", fileServer))
 
 	return r
 }

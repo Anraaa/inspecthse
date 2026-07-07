@@ -35,6 +35,18 @@ func (r *AssetRepository) FindByQRCode(ctx context.Context, qrCode string) (*mod
 	return &a, nil
 }
 
+func (r *AssetRepository) FindExpiringAssets(ctx context.Context, withinDays int) ([]model.Asset, error) {
+	var assets []model.Asset
+	err := r.db.SelectContext(ctx, &assets,
+		"SELECT * FROM assets WHERE expired_at IS NOT NULL AND expired_at BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY) AND is_active = TRUE",
+		withinDays,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return assets, nil
+}
+
 func (r *AssetRepository) Create(ctx context.Context, asset *model.Asset) error {
 	res, err := r.db.ExecContext(ctx, `
 		INSERT INTO assets (name, asset_category, serial_number, location_id, pic_id, section_id, plant, size, expired_at, qr_code, is_active)

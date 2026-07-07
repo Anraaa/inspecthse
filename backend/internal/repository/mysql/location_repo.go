@@ -56,6 +56,15 @@ func (r *LocationRepository) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+func (r *LocationRepository) FindByName(ctx context.Context, name string) (*model.Location, error) {
+	var l model.Location
+	err := r.db.GetContext(ctx, &l, "SELECT * FROM locations WHERE name = ?", name)
+	if err != nil {
+		return nil, fmt.Errorf("location not found by name: %w", err)
+	}
+	return &l, nil
+}
+
 func (r *LocationRepository) List(ctx context.Context) ([]model.Location, error) {
 	var locations []model.Location
 	err := r.db.SelectContext(ctx, &locations, "SELECT * FROM locations ORDER BY id")

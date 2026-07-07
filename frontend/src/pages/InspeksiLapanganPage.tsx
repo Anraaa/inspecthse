@@ -1,15 +1,16 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
 import type { Asset, HSEParameter, Shift } from "@/types";
-import { AlertTriangle, Send, CheckCircle, ArrowLeft, Building, ClipboardCheck } from "lucide-react";
+import { AlertTriangle, Send, CheckCircle, ArrowLeft, Building, ClipboardCheck, Camera, XCircle, Image } from "lucide-react";
 
 interface FormEntry {
   hse_parameter_id: number;
   value: string;
   is_anomaly: boolean;
   notes: string;
+  photo_path?: string;
 }
 
 function uuidv4(): string {
@@ -37,6 +38,10 @@ export function InspeksiLapanganPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+
+  const [activeUploadKey, setActiveUploadKey] = useState<{ assetId: number; paramId: number } | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   // 1. Fetch single asset (if asset_id is present)
   const { data: singleAsset, isLoading: assetLoading } = useQuery({
@@ -135,21 +140,74 @@ export function InspeksiLapanganPage() {
     }
   }, [assets, parameters, getParamsForCategory]);
 
-  const updateValue = useCallback((assetId: number, paramId: number, value: string) => {
-    const key = `${assetId}-${paramId}`;
-    setFormValues((prev) => ({
-      ...prev,
-      [key]: { ...prev[key], value },
-    }));
+  const [uploadingKeys, setUploadingKeys] = useState<Record<string, boolean>>({});
+
+  const checkIsAnomaly = useCallback((inputType: string, value: string) => {
+    if (!value) return false;
+    const valLower = value.toLowerCase().trim();
+    
+    if (inputType === "boolean") {
+      return valLower === "tidak" || valLower === "false";
+    }
+    if (inputType === "numeric") {
+      const num = parseFloat(value);
+      return !isNaN(num) && num <= 0; // 0 or negative values indicate anomaly
+    }
+    if (inputType === "option") {
+      return valLower === "x" || valLower.includes("rusak") || valLower.includes("tidak") || valLower.includes("hilang") || valLower.includes("kosong");
+    }
+    return false;
   }, []);
 
-  const toggleAnomaly = useCallback((assetId: number, paramId: number) => {
+  const updateValue = useCallback((assetId: number, paramId: number, value: string, inputType: string) => {
     const key = `${assetId}-${paramId}`;
+    const isAnomaly = checkIsAnomaly(inputType, value);
     setFormValues((prev) => ({
       ...prev,
-      [key]: { ...prev[key], is_anomaly: !prev[key]?.is_anomaly },
+      [key]: { 
+        ...prev[key], 
+        value,
+        is_anomaly: isAnomaly,
+        photo_path: isAnomaly ? prev[key]?.photo_path : undefined
+      },
     }));
-  }, []);
+  }, [checkIsAnomaly]);
+
+  const handleImageUploadedFromSource = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeUploadKey) return;
+
+    const { assetId, paramId } = activeUploadKey;
+    const key = `${assetId}-${paramId}`;
+    setUploadingKeys((prev) => ({ ...prev, [key]: true }));
+    setError("");
+    setActiveUploadKey(null); // Close the modal immediately
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await api.post("/uploads", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      const filePath = res.data?.file_path;
+      if (filePath) {
+        setFormValues((prev) => ({
+          ...prev,
+          [key]: { ...prev[key], photo_path: filePath },
+        }));
+      }
+    } catch (err: any) {
+      setError("Gagal mengunggah gambar. Silakan coba lagi.");
+    } finally {
+      setUploadingKeys((prev) => ({ ...prev, [key]: false }));
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
+      if (galleryInputRef.current) galleryInputRef.current.value = "";
+    }
+  };
 
   const updateNotes = useCallback((assetId: number, paramId: number, notes: string) => {
     const key = `${assetId}-${paramId}`;
@@ -173,13 +231,21 @@ export function InspeksiLapanganPage() {
     for (const asset of assets) {
       const assetParams = getParamsForCategory(asset.asset_category);
       for (const p of assetParams) {
+        const key = `${asset.id}-${p.id}`;
+        const entry = formValues[key];
+        const val = entry?.value;
+
         if (p.is_required) {
-          const key = `${asset.id}-${p.id}`;
-          const val = formValues[key]?.value;
           if (val === "" || val === undefined || val === null) {
             setError(`Parameter "${p.parameter_name}" pada aset "${asset.name}" wajib diisi.`);
             return;
           }
+        }
+
+        // If the answer is "Tidak", photo upload is mandatory
+        if (val === "Tidak" && (!entry?.photo_path || entry.photo_path === "")) {
+          setError(`Foto bukti wajib dilampirkan untuk parameter "${p.parameter_name}" pada aset "${asset.name}".`);
+          return;
         }
       }
     }
@@ -191,6 +257,7 @@ export function InspeksiLapanganPage() {
       // Submit a patrol for each asset in parallel
       const submitPromises = assets.map(async (asset) => {
         const details: { hse_parameter_id: number; value: string; is_anomaly: boolean; notes: string }[] = [];
+        const attachments: { file_path: string; attachment_type: string; is_live_capture: boolean }[] = [];
         const assetParams = getParamsForCategory(asset.asset_category);
 
         for (const p of assetParams) {
@@ -203,6 +270,13 @@ export function InspeksiLapanganPage() {
               is_anomaly: entry.is_anomaly,
               notes: entry.notes,
             });
+            if (entry.value === "Tidak" && entry.photo_path) {
+              attachments.push({
+                file_path: entry.photo_path,
+                attachment_type: "photo",
+                is_live_capture: false,
+              });
+            }
           }
         }
 
@@ -213,7 +287,7 @@ export function InspeksiLapanganPage() {
             shift_id: shiftId,
             client_uuid: uuidv4(),
             details,
-            attachments: [],
+            attachments,
           });
         }
       });
@@ -295,116 +369,107 @@ export function InspeksiLapanganPage() {
         <ArrowLeft className="w-4 h-4" /> Kembali
       </button>
 
-      {/* Scrollable Header & Shift Container for Mobile */}
-      <div className="flex gap-4 overflow-x-auto pb-4 mb-2 -mx-4 px-4 scrollbar-none snap-x snap-mandatory lg:flex-col lg:overflow-x-visible lg:pb-0 lg:mb-6 lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        
-        {/* Main Header Card */}
-        <div className="w-[88vw] sm:w-[360px] flex-shrink-0 snap-start lg:w-full">
-          <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 p-6 h-full flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-4">
-                {locationId ? (
-                  <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100/50">
-                    <Building className="w-7 h-7" />
-                  </div>
-                ) : (
-                  <div className="p-3 bg-cyan-50 text-cyan-600 rounded-2xl border border-cyan-100/50">
-                    <ClipboardCheck className="w-7 h-7" />
-                  </div>
-                )}
-                <div>
-                  <h1 className="text-xl font-black text-gray-900 tracking-tight">
-                    Form Inspeksi {locationId ? "Lokasi" : "Aset"}
-                  </h1>
-                  <p className="text-xs text-gray-400 font-medium">
-                    Sistem Manajemen Inspeksi K3L & HSE
-                  </p>
-                </div>
+      {/* Main Header Card */}
+      <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 p-6 mb-6">
+        <div>
+          <div className="flex items-center gap-4">
+            {locationId ? (
+              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100/50">
+                <Building className="w-7 h-7" />
               </div>
-
-              {locationId && location && (
-                <div className="mt-5 pt-4 border-t border-gray-100/70 grid grid-cols-2 gap-y-3 gap-x-4 text-xs">
-                  <div>
-                    <p className="text-gray-400 font-medium mb-0.5">Nama Lokasi</p>
-                    <p className="font-bold text-gray-800 text-sm">{location.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 font-medium mb-0.5">Jumlah Aset</p>
-                    <p className="font-bold text-emerald-600 text-sm">{assets.length} Aset</p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-gray-400 font-medium mb-0.5">Deskripsi Lokasi</p>
-                    <p className="font-medium text-gray-600 leading-relaxed truncate">{location.description || "-"}</p>
-                  </div>
-                </div>
-              )}
-
-              {assetId && singleAsset && (
-                <div className="mt-5 pt-4 border-t border-gray-100/70 grid grid-cols-2 gap-y-3 gap-x-4 text-xs">
-                  <div>
-                    <p className="text-gray-400 font-medium mb-0.5">Nama Aset</p>
-                    <p className="font-bold text-gray-800 text-sm">{singleAsset.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 font-medium mb-0.5">Kategori</p>
-                    <span className={`inline-block px-2.5 py-0.5 text-[10px] font-bold uppercase border rounded-full mt-0.5 ${getBadgeStyle(singleAsset.asset_category)}`}>
-                      {singleAsset.asset_category}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 font-medium mb-0.5">Serial Number</p>
-                    <p className="font-bold text-gray-800">{singleAsset.serial_number || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 font-medium mb-0.5">Kode QR</p>
-                    <p className="font-mono text-gray-600">{singleAsset.qr_code}</p>
-                  </div>
-                </div>
-              )}
+            ) : (
+              <div className="p-3 bg-cyan-50 text-cyan-600 rounded-2xl border border-cyan-100/50">
+                <ClipboardCheck className="w-7 h-7" />
+              </div>
+            )}
+            <div>
+              <h1 className="text-xl font-black text-gray-900 tracking-tight">
+                Form Inspeksi {locationId ? "Lokasi" : "Aset"}
+              </h1>
+              <p className="text-xs text-gray-400 font-medium">
+                Sistem Manajemen Inspeksi K3L & HSE
+              </p>
             </div>
           </div>
-        </div>
 
-        {/* Shift Selector */}
-        <div className="w-[88vw] sm:w-[360px] flex-shrink-0 snap-start lg:w-full">
-          <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 p-6 h-full flex flex-col justify-between">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Pilih Shift Kerja</label>
-              <div className="grid grid-cols-1 gap-2">
-                {shifts?.map((s) => {
-                  const isSelected = shiftId === s.id;
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => setShiftId(s.id)}
-                      className={`px-4 py-2.5 rounded-2xl border text-left transition-all ${
-                        isSelected
-                          ? "bg-primary-50 border-primary-300 ring-2 ring-primary-100"
-                          : "bg-white border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className={`text-xs font-bold uppercase tracking-wider ${isSelected ? "text-primary-700" : "text-gray-400"}`}>
-                            Shift {s.name}
-                          </p>
-                          <p className={`text-[11px] font-medium mt-0.5 ${isSelected ? "text-primary-600" : "text-gray-500"}`}>
-                            {s.start_time} - {s.end_time}
-                          </p>
-                        </div>
-                        {isSelected && (
-                          <div className="w-2 h-2 rounded-full bg-primary-500 animate-pulse" />
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
+          {locationId && location && (
+            <div className="mt-5 pt-4 border-t border-gray-100/70 grid grid-cols-2 gap-y-3 gap-x-4 text-xs">
+              <div>
+                <p className="text-gray-400 font-medium mb-0.5">Nama Lokasi</p>
+                <p className="font-bold text-gray-800 text-sm">{location.name}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 font-medium mb-0.5">Jumlah Aset</p>
+                <p className="font-bold text-emerald-600 text-sm">{assets.length} Aset</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-gray-400 font-medium mb-0.5">Deskripsi Lokasi</p>
+                <p className="font-medium text-gray-600 leading-relaxed truncate">{location.description || "-"}</p>
               </div>
             </div>
+          )}
+
+          {assetId && singleAsset && (
+            <div className="mt-5 pt-4 border-t border-gray-100/70 grid grid-cols-2 gap-y-3 gap-x-4 text-xs">
+              <div>
+                <p className="text-gray-400 font-medium mb-0.5">Nama Aset</p>
+                <p className="font-bold text-gray-800 text-sm">{singleAsset.name}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 font-medium mb-0.5">Kategori</p>
+                <span className={`inline-block px-2.5 py-0.5 text-[10px] font-bold uppercase border rounded-full mt-0.5 ${getBadgeStyle(singleAsset.asset_category)}`}>
+                  {singleAsset.asset_category}
+                </span>
+              </div>
+              <div>
+                <p className="text-gray-400 font-medium mb-0.5">Serial Number</p>
+                <p className="font-bold text-gray-800">{singleAsset.serial_number || "-"}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 font-medium mb-0.5">Kode QR</p>
+                <p className="font-mono text-gray-600">{singleAsset.qr_code}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Shift Selector Card */}
+      <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 p-6 mb-6">
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Pilih Shift Kerja</label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {shifts?.map((s) => {
+              const isSelected = shiftId === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setShiftId(s.id)}
+                  className={`px-4 py-2.5 rounded-2xl border text-left transition-all ${
+                    isSelected
+                      ? "bg-primary-50 border-primary-300 ring-2 ring-primary-100"
+                      : "bg-white border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className={`text-xs font-bold uppercase tracking-wider ${isSelected ? "text-primary-700" : "text-gray-400"}`}>
+                        Shift {s.name}
+                      </p>
+                      <p className={`text-[11px] font-medium mt-0.5 ${isSelected ? "text-primary-600" : "text-gray-500"}`}>
+                        {s.start_time} - {s.end_time}
+                      </p>
+                    </div>
+                    {isSelected && (
+                      <div className="w-2 h-2 rounded-full bg-primary-500 animate-pulse" />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
-
       </div>
 
       {/* Checklist Cards per Asset */}
@@ -453,13 +518,12 @@ export function InspeksiLapanganPage() {
                         {param.is_required && <span className="text-red-500 ml-1 font-black">*</span>}
                       </label>
                     </div>
-
-                    {/* Inputs based on type */}
+                    {/* Render input elements based on parameter type */}
                     {param.input_type === "boolean" && (
                       <div className="flex gap-3 mt-2">
                         <button
                           type="button"
-                          onClick={() => updateValue(asset.id, param.id, "Ya")}
+                          onClick={() => updateValue(asset.id, param.id, "Ya", param.input_type)}
                           className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border ${
                             entry.value === "Ya"
                               ? "bg-green-600 border-green-600 text-white shadow-md shadow-green-500/20"
@@ -470,7 +534,7 @@ export function InspeksiLapanganPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => updateValue(asset.id, param.id, "Tidak")}
+                          onClick={() => updateValue(asset.id, param.id, "Tidak", param.input_type)}
                           className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border ${
                             entry.value === "Tidak"
                               ? "bg-red-600 border-red-600 text-white shadow-md shadow-red-500/20"
@@ -487,8 +551,8 @@ export function InspeksiLapanganPage() {
                         type="number"
                         step="any"
                         value={entry.value}
-                        onChange={(e) => updateValue(asset.id, param.id, e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white transition-all font-medium"
+                        onChange={(e) => updateValue(asset.id, param.id, e.target.value, param.input_type)}
+                        className="w-full px-4 py-3.5 border border-gray-200 rounded-2xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white transition-all font-medium mt-2"
                         placeholder={`Masukkan nilai angka${param.unit ? ` (${param.unit})` : ""}`}
                       />
                     )}
@@ -497,8 +561,8 @@ export function InspeksiLapanganPage() {
                       <input
                         type="text"
                         value={entry.value}
-                        onChange={(e) => updateValue(asset.id, param.id, e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white transition-all font-medium"
+                        onChange={(e) => updateValue(asset.id, param.id, e.target.value, param.input_type)}
+                        className="w-full px-4 py-3.5 border border-gray-200 rounded-2xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white transition-all font-medium mt-2"
                         placeholder="Masukkan keterangan tertulis"
                       />
                     )}
@@ -506,8 +570,8 @@ export function InspeksiLapanganPage() {
                     {param.input_type === "option" && (
                       <select
                         value={entry.value}
-                        onChange={(e) => updateValue(asset.id, param.id, e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white transition-all font-medium"
+                        onChange={(e) => updateValue(asset.id, param.id, e.target.value, param.input_type)}
+                        className="w-full px-4 py-3.5 border border-gray-200 rounded-2xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white transition-all font-medium mt-2"
                       >
                         <option value="">Pilih Opsi Kriteria</option>
                         {param.options?.split(",").map((opt) => (
@@ -518,26 +582,62 @@ export function InspeksiLapanganPage() {
                       </select>
                     )}
 
-                    {/* Anomaly & Notes Section */}
-                    <div className="mt-4 pt-3 border-t border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <button
-                        type="button"
-                        onClick={() => toggleAnomaly(asset.id, param.id)}
-                        className={`flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all border ${
-                          entry.is_anomaly
-                            ? "bg-red-600 border-red-600 text-white shadow-md shadow-red-500/20"
-                            : "bg-white border-gray-200 text-gray-500 hover:bg-gray-100"
-                        }`}
-                      >
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        {entry.is_anomaly ? "Anomali Terdeteksi" : "Tandai Anomali"}
-                      </button>
+                    {/* Photo Upload Section when is_anomaly is true */}
+                    {entry.is_anomaly && (
+                      <div className="mt-4 pt-3 border-t border-gray-100/70">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                          Foto Bukti Temuan (Wajib) <span className="text-red-500">*</span>
+                        </label>
+                        
+                        {uploadingKeys[key] ? (
+                          <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 text-xs font-medium text-gray-500">
+                            <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                            Mengunggah foto...
+                          </div>
+                        ) : entry.photo_path ? (
+                          <div className="relative rounded-2xl overflow-hidden border border-gray-100 bg-gray-50 flex items-center p-3 gap-3">
+                            <img
+                              src={entry.photo_path}
+                              alt="Bukti foto"
+                              className="w-16 h-16 object-cover rounded-xl border border-gray-200"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-gray-800 truncate">Foto Bukti Terunggah</p>
+                              <p className="text-[10px] text-gray-400 truncate">{entry.photo_path}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormValues((prev) => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], photo_path: undefined }
+                                }));
+                              }}
+                              className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-all"
+                            >
+                              <XCircle className="w-5 h-5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setActiveUploadKey({ assetId: asset.id, paramId: param.id })}
+                            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-primary-500 hover:bg-primary-50/10 transition-all text-xs font-bold text-gray-600 bg-white active:scale-[0.99]"
+                          >
+                            <Camera className="w-4 h-4 text-gray-400" />
+                            Ambil Foto / Pilih dari Galeri
+                          </button>
+                        )}
+                      </div>
+                    )}
 
+                    {/* Notes Section (Tandai Anomali removed) */}
+                    <div className="mt-4 pt-3 border-t border-gray-100">
                       <input
                         type="text"
                         value={entry.notes}
                         onChange={(e) => updateNotes(asset.id, param.id, e.target.value)}
-                        className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-xs outline-none focus:border-primary-500 bg-white"
+                        className="w-full px-4 py-2 border border-gray-200 rounded-xl text-xs outline-none focus:border-primary-500 bg-white"
                         placeholder="Catatan kendala / temuan (opsional)"
                       />
                     </div>
@@ -573,6 +673,83 @@ export function InspeksiLapanganPage() {
           </button>
         </div>
       </div>
+
+      {/* Hidden File Upload Inputs for Kamera and Galeri */}
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        ref={cameraInputRef}
+        className="hidden"
+        onChange={handleImageUploadedFromSource}
+      />
+      <input
+        type="file"
+        accept="image/*"
+        ref={galleryInputRef}
+        className="hidden"
+        onChange={handleImageUploadedFromSource}
+      />
+
+      {/* Modal Selection Source */}
+      {activeUploadKey && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200 relative overflow-hidden">
+            {/* Header decoration line */}
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-primary-500 to-indigo-500" />
+            
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-lg font-black text-gray-900 leading-tight">Unggah Foto Bukti</h3>
+                <p className="text-xs text-gray-400 font-semibold mt-1">Pilih metode pengambilan gambar</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveUploadKey(null)}
+                className="p-1.5 bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-full transition-all border border-gray-200/50"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              {/* Option 1: Camera */}
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="group flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-gray-100 hover:border-primary-500 hover:bg-primary-50/10 transition-all text-center bg-white active:scale-[0.98]"
+              >
+                <div className="w-12 h-12 rounded-full bg-primary-50 text-primary-600 flex items-center justify-center mb-3 group-hover:scale-115 transition-transform duration-200">
+                  <Camera className="w-6 h-6" />
+                </div>
+                <span className="text-xs font-black text-gray-800 uppercase tracking-wider block mb-1">Kamera</span>
+                <span className="text-[10px] text-gray-400 leading-relaxed font-semibold">Ambil foto langsung</span>
+              </button>
+
+              {/* Option 2: Gallery */}
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="group flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-gray-100 hover:border-indigo-500 hover:bg-indigo-50/10 transition-all text-center bg-white active:scale-[0.98]"
+              >
+                <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-115 transition-transform duration-200">
+                  <Image className="w-6 h-6" />
+                </div>
+                <span className="text-xs font-black text-gray-800 uppercase tracking-wider block mb-1">Galeri</span>
+                <span className="text-[10px] text-gray-400 leading-relaxed font-semibold">Pilih dari album</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveUploadKey(null)}
+              className="w-full py-3.5 bg-gray-50 hover:bg-gray-100 border border-gray-200/50 text-gray-500 hover:text-gray-700 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all active:scale-[0.99]"
+            >
+              Batal
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

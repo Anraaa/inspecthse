@@ -6,7 +6,8 @@ import type { Patrol, Asset, Shift } from "@/types";
 import { useAuthStore } from "@/store/authStore";
 import { useThemeStore } from "@/lib/theme";
 import { formatDate } from "@/lib/utils";
-import { ClipboardCheck, Clock, CheckCircle, XCircle, Eye, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Pagination } from "@/components/Pagination";
+import { ClipboardCheck, Clock, CheckCircle, XCircle, Eye, Search } from "lucide-react";
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; icon: any }> = {
   draft: { label: "Draft", color: "text-gray-600", bg: "bg-gray-100", icon: Clock },
@@ -102,7 +103,6 @@ export function PatrolListPage() {
 
   const patrols = data?.data || [];
   const total = data?.total || 0;
-  const totalPages = Math.ceil(total / limit);
 
   return (
     <div className="space-y-6">
@@ -243,43 +243,7 @@ export function PatrolListPage() {
             </table>
           </div>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">
-                {total} patroli
-              </p>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setPage(Math.max(0, page - 1))}
-                  disabled={page === 0}
-                  className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setPage(i)}
-                    className="w-8 h-8 rounded-lg text-xs font-medium transition-all"
-                    style={
-                      i === page
-                        ? { backgroundColor: theme.colors[500], color: "#fff" }
-                        : { backgroundColor: "#f3f4f6", color: "#6b7280" }
-                    }
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-                  disabled={page >= totalPages - 1}
-                  className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
+          <Pagination offset={page * limit} limit={limit} total={total} onPage={(o) => setPage(Math.floor(o / limit))} />
         </>
       )}
     </div>

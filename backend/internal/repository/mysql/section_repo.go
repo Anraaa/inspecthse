@@ -47,6 +47,15 @@ func (r *SectionRepository) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+func (r *SectionRepository) FindByName(ctx context.Context, name string) (*model.Section, error) {
+	var s model.Section
+	err := r.db.GetContext(ctx, &s, "SELECT * FROM sections WHERE name = ?", name)
+	if err != nil {
+		return nil, fmt.Errorf("section not found by name: %w", err)
+	}
+	return &s, nil
+}
+
 func (r *SectionRepository) List(ctx context.Context) ([]model.Section, error) {
 	var sections []model.Section
 	err := r.db.SelectContext(ctx, &sections, "SELECT * FROM sections ORDER BY id")

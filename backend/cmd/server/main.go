@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -58,16 +59,18 @@ func main() {
 
 	// Service initialization
 	alertSvc := service.NewAlertService(alertRepo)
+	logSvc := service.NewActivityLogService(activityLogRepo)
 	authSvc := service.NewAuthService(userRepo, rdb, cfg)
-	userSvc := service.NewUserService(userRepo)
+	userSvc := service.NewUserService(userRepo, logSvc)
 	assetSvc := service.NewAssetService(assetRepo)
-	locationSvc := service.NewLocationService(locationRepo)
-	sectionSvc := service.NewSectionService(sectionRepo)
-	shiftSvc := service.NewShiftService(shiftRepo)
-	paramSvc := service.NewHSEParameterService(hseParamRepo)
-	patrolSvc := service.NewPatrolService(patrolRepo, patrolDetailRepo, patrolAttachmentRepo, assetRepo, alertSvc, activityLogRepo)
-	exportSvc := service.NewExportService(assetRepo, patrolRepo, patrolDetailRepo, locationRepo, sectionRepo)
+	locationSvc := service.NewLocationService(locationRepo, logSvc)
+	sectionSvc := service.NewSectionService(sectionRepo, logSvc)
+	shiftSvc := service.NewShiftService(shiftRepo, logSvc)
+	paramSvc := service.NewHSEParameterService(hseParamRepo, logSvc)
+	patrolSvc := service.NewPatrolService(patrolRepo, patrolDetailRepo, patrolAttachmentRepo, assetRepo, alertSvc, activityLogRepo, userRepo)
+	exportSvc := service.NewExportService(assetRepo, patrolRepo, patrolDetailRepo, locationRepo, sectionRepo, userRepo)
 	dashSvc := service.NewDashboardService(patrolRepo, assetRepo, userRepo)
+	expiredAssetSvc := service.NewExpiredAssetService(assetRepo, alertSvc)
 
 	// Handler initialization
 	authH := handler.NewAuthHandler(authSvc)
@@ -76,8 +79,16 @@ func main() {
 	masterH := handler.NewMasterDataHandler(locationSvc, sectionSvc, shiftSvc, paramSvc, userSvc)
 	dashH := handler.NewDashboardHandler(dashSvc)
 	exportH := handler.NewExportHandler(exportSvc)
+	alertH := handler.NewAlertHandler(alertSvc)
 
-	r := router.New(cfg, authH, assetH, patrolH, masterH, dashH, exportH)
+	// Run expired asset check on startup
+	go func() {
+		if err := expiredAssetSvc.CheckExpiredAssets(context.Background()); err != nil {
+			logger.Warn().Err(err).Msg("expired asset check failed on startup")
+		}
+	}()
+
+	r := router.New(cfg, authH, assetH, patrolH, masterH, dashH, exportH, alertH)
 
 	addr := ":" + cfg.ServerPort
 	logger.Info().Str("addr", addr).Msg("server starting")

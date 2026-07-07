@@ -5,6 +5,7 @@ import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 import { useThemeStore } from "@/lib/theme";
 import { formatDate } from "@/lib/utils";
+import { useToastStore } from "@/store/toastStore";
 import type { PatrolDetailResponse, PatrolDetail, HSEParameter } from "@/types";
 import {
   ArrowLeft,
@@ -31,6 +32,7 @@ export function PatrolDetailPage() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const theme = useThemeStore((s) => s.theme);
+  const addToast = useToastStore((s) => s.addToast);
   const [rejectReason, setRejectReason] = useState("");
   const [showReject, setShowReject] = useState(false);
   const [actionLoading, setActionLoading] = useState("");
@@ -67,8 +69,9 @@ export function PatrolDetailPage() {
       await api.put(`/patrols/${id}/approve`);
       queryClient.invalidateQueries({ queryKey: ["patrol", id] });
       queryClient.invalidateQueries({ queryKey: ["patrols"] });
+      addToast("Patroli berhasil disetujui", "success");
     } catch (err: any) {
-      alert(err.response?.data?.error || "Gagal menyetujui");
+      addToast(err.response?.data?.error || "Gagal menyetujui patroli", "error");
     } finally {
       setActionLoading("");
     }
@@ -82,8 +85,9 @@ export function PatrolDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["patrol", id] });
       queryClient.invalidateQueries({ queryKey: ["patrols"] });
       setShowReject(false);
+      addToast("Patroli ditolak", "success");
     } catch (err: any) {
-      alert(err.response?.data?.error || "Gagal menolak");
+      addToast(err.response?.data?.error || "Gagal menolak patroli", "error");
     } finally {
       setActionLoading("");
     }
@@ -107,8 +111,9 @@ export function PatrolDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["patrol", id] });
       setGhostMode(false);
       setGhostDetails({});
+      addToast("Ghost edit berhasil disimpan", "success");
     } catch (err: any) {
-      alert(err.response?.data?.error || "Gagal ghost edit");
+      addToast(err.response?.data?.error || "Gagal ghost edit", "error");
     } finally {
       setActionLoading("");
     }
@@ -260,12 +265,17 @@ export function PatrolDetailPage() {
       {attachments.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <FileText className="w-5 h-5" /> Lampiran
+            <FileText className="w-5 h-5" /> Lampiran Foto Bukti
           </h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {attachments.map((att) => (
-              <div key={att.id} className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
-                {att.file_path}
+              <div key={att.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-2">
+                <img
+                  src={att.file_path}
+                  alt="Lampiran foto bukti"
+                  className="w-full h-48 object-cover rounded-xl border border-gray-200"
+                />
+                <span className="text-[10px] text-gray-400 truncate">{att.file_path}</span>
               </div>
             ))}
           </div>

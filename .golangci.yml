@@ -1,0 +1,41 @@
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - gofmt
+    - bodyclose
+    - errcheck
+    - gosec
+    - ineffassign
+    - misspell
+    - unconvert
+    - prealloc
+    - revive
+
+linters-settings:
+  gofmt:
+    simplify: true
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  gosec:
+    excludes:
+      - G107
+      - G404
+  staticcheck:
+    checks:
+      - all
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+        - bodyclose
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+run:
+  timeout: 5m
+  tests: true

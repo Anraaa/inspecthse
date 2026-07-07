@@ -17,6 +17,7 @@ type patrolService struct {
 	assetRepo         repository.AssetRepository
 	alertSvc          AlertService
 	activityLogRepo   repository.ActivityLogRepository
+	userRepo          repository.UserRepository
 }
 
 func NewPatrolService(
@@ -26,6 +27,7 @@ func NewPatrolService(
 	assetRepo repository.AssetRepository,
 	alertSvc AlertService,
 	activityLogRepo repository.ActivityLogRepository,
+	userRepo repository.UserRepository,
 ) PatrolService {
 	return &patrolService{
 		patrolRepo:      patrolRepo,
@@ -34,6 +36,7 @@ func NewPatrolService(
 		assetRepo:       assetRepo,
 		alertSvc:        alertSvc,
 		activityLogRepo: activityLogRepo,
+		userRepo:        userRepo,
 	}
 }
 
@@ -83,6 +86,14 @@ func (s *patrolService) Submit(ctx context.Context, patrolID int64) error {
 		return err
 	}
 
+	s.activityLogRepo.Create(ctx, &model.ActivityLog{
+		UserID:   patrol.UserID,
+		Action:   "submit",
+		Entity:   "patrol",
+		EntityID: patrolID,
+		NewValue: string(model.PatrolStatusWaitingApproval),
+	})
+
 	details, err := s.detailRepo.ListByPatrolID(ctx, patrolID)
 	if err != nil {
 		return nil
@@ -112,7 +123,34 @@ func (s *patrolService) Approve(ctx context.Context, patrolID, approvedBy int64)
 	now := time.Now()
 	patrol.ApprovedAt = &now
 
-	return s.patrolRepo.Update(ctx, patrol)
+	if err := s.patrolRepo.Update(ctx, patrol); err != nil {
+		return err
+	}
+
+	asset, _ := s.assetRepo.FindByID(ctx, patrol.AssetID)
+	approver, _ := s.userRepo.FindByID(ctx, approvedBy)
+
+	assetName := "aset"
+	if asset != nil {
+		assetName = asset.Name
+	}
+	approverName := ""
+	if approver != nil {
+		approverName = approver.Name
+	}
+
+	msg := fmt.Sprintf("Patroli %s pada %s telah disetujui oleh %s", assetName, patrol.CreatedAt.Format("2 Jan 2006"), approverName)
+	s.alertSvc.CreateApprovalAlert(ctx, patrolID, patrol.AssetID, patrol.UserID, msg)
+
+	s.activityLogRepo.Create(ctx, &model.ActivityLog{
+		UserID:   approvedBy,
+		Action:   "approve",
+		Entity:   "patrol",
+		EntityID: patrolID,
+		NewValue: string(model.PatrolStatusApproved),
+	})
+
+	return nil
 }
 
 func (s *patrolService) Reject(ctx context.Context, patrolID, rejectedBy int64, reason string) error {
@@ -124,7 +162,34 @@ func (s *patrolService) Reject(ctx context.Context, patrolID, rejectedBy int64, 
 	patrol.Status = model.PatrolStatusRejected
 	patrol.RejectionReason = &reason
 
-	return s.patrolRepo.Update(ctx, patrol)
+	if err := s.patrolRepo.Update(ctx, patrol); err != nil {
+		return err
+	}
+
+	asset, _ := s.assetRepo.FindByID(ctx, patrol.AssetID)
+	rejector, _ := s.userRepo.FindByID(ctx, rejectedBy)
+
+	assetName := "aset"
+	if asset != nil {
+		assetName = asset.Name
+	}
+	rejectorName := ""
+	if rejector != nil {
+		rejectorName = rejector.Name
+	}
+
+	msg := fmt.Sprintf("Patroli %s pada %s ditolak oleh %s. Alasan: %s", assetName, patrol.CreatedAt.Format("2 Jan 2006"), rejectorName, reason)
+	s.alertSvc.CreateApprovalAlert(ctx, patrolID, patrol.AssetID, patrol.UserID, msg)
+
+	s.activityLogRepo.Create(ctx, &model.ActivityLog{
+		UserID:   rejectedBy,
+		Action:   "reject",
+		Entity:   "patrol",
+		EntityID: patrolID,
+		NewValue: string(model.PatrolStatusRejected),
+	})
+
+	return nil
 }
 
 func (s *patrolService) GetByID(ctx context.Context, id int64) (*PatrolDetailResponse, error) {
@@ -166,7 +231,6 @@ func (s *patrolService) GhostEdit(ctx context.Context, patrolID int64, details [
 			Action:   "ghost_edit",
 			Entity:   "patrol_detail",
 			EntityID: d.ID,
-			OldValue: "",
 			NewValue: d.Value,
 			IsGhost:  true,
 		})

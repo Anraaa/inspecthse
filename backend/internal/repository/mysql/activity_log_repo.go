@@ -57,3 +57,19 @@ func (r *ActivityLogRepository) List(ctx context.Context, entity string, entityI
 	}
 	return logs, total, nil
 }
+
+func (r *ActivityLogRepository) ListByUserID(ctx context.Context, userID int64, offset, limit int) ([]model.ActivityLog, int, error) {
+	var total int
+	err := r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM activity_logs WHERE user_id = ?", userID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var logs []model.ActivityLog
+	err = r.db.SelectContext(ctx, &logs, "SELECT * FROM activity_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+		userID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	return logs, total, nil
+}

@@ -55,6 +55,15 @@ func (r *UserRepository) Update(ctx context.Context, user *model.User) error {
 	return err
 }
 
+func (r *UserRepository) FindByName(ctx context.Context, name string) (*model.User, error) {
+	var u model.User
+	err := r.db.GetContext(ctx, &u, "SELECT * FROM users WHERE name = ?", name)
+	if err != nil {
+		return nil, fmt.Errorf("user not found by name: %w", err)
+	}
+	return &u, nil
+}
+
 func (r *UserRepository) List(ctx context.Context, offset, limit int) ([]model.User, int, error) {
 	var total int
 	r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM users")

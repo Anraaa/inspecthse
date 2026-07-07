@@ -14,11 +14,12 @@ import (
 )
 
 type exportService struct {
-	assetRepo   repository.AssetRepository
-	patrolRepo  repository.PatrolRepository
-	detailRepo  repository.PatrolDetailRepository
+	assetRepo    repository.AssetRepository
+	patrolRepo   repository.PatrolRepository
+	detailRepo   repository.PatrolDetailRepository
 	locationRepo repository.LocationRepository
-	sectionRepo repository.SectionRepository
+	sectionRepo  repository.SectionRepository
+	userRepo     repository.UserRepository
 }
 
 func NewExportService(
@@ -27,6 +28,7 @@ func NewExportService(
 	detailRepo repository.PatrolDetailRepository,
 	locationRepo repository.LocationRepository,
 	sectionRepo repository.SectionRepository,
+	userRepo repository.UserRepository,
 ) ExportService {
 	return &exportService{
 		assetRepo:    assetRepo,
@@ -34,6 +36,7 @@ func NewExportService(
 		detailRepo:   detailRepo,
 		locationRepo: locationRepo,
 		sectionRepo:  sectionRepo,
+		userRepo:     userRepo,
 	}
 }
 
@@ -430,6 +433,77 @@ func getAssetName(assets []model.Asset, id int64) string {
 	return fmt.Sprintf("Asset #%d", id)
 }
 
+func (s *exportService) DownloadImportTemplate(ctx context.Context) ([]byte, error) {
+	f := excelize.NewFile()
+	defer f.Close()
+
+	sheet := "Template Import Aset"
+	f.SetSheetName("Sheet1", sheet)
+
+	// Write instruction header
+	f.SetCellValue(sheet, "A1", "TEMPLATE IMPORT MASTER DATA ASET - PT. INSPECT HSE")
+	f.SetCellValue(sheet, "A2", "Isi data sesuai format di bawah. Kolom bertanda * wajib diisi.")
+	f.SetCellValue(sheet, "A3", "Kategori yang valid: APAR, HYDRANT, FIRE_ALARM")
+	f.MergeCell(sheet, "A1", "I1")
+	f.MergeCell(sheet, "A2", "I2")
+	f.MergeCell(sheet, "A3", "I3")
+
+	// Column headers
+	headers := []string{"name*", "category*", "serial_number*", "location*", "pic", "section", "plant", "size", "expired_at"}
+	colLetters := []string{
+		"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+	}
+
+	headerStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true, Color: "FFFFFF", Size: 11},
+		Fill: excelize.Fill{Type: "pattern", Color: []string{"#2563EB"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+		Border: []excelize.Border{
+			{Type: "left", Color: "000000", Style: 1},
+			{Type: "right", Color: "000000", Style: 1},
+			{Type: "top", Color: "000000", Style: 1},
+			{Type: "bottom", Color: "000000", Style: 1},
+		},
+	})
+
+	for i, h := range headers {
+		cell := colLetters[i] + "5"
+		f.SetCellValue(sheet, cell, h)
+		f.SetCellStyle(sheet, cell, cell, headerStyle)
+	}
+
+	// Example data row
+	f.SetCellValue(sheet, "A6", "APAR Lt.1")
+	f.SetCellValue(sheet, "B6", "APAR")
+	f.SetCellValue(sheet, "C6", "APR-2024-001")
+	f.SetCellValue(sheet, "D6", "Gedung Utama Lt.1")
+	f.SetCellValue(sheet, "E6", "Budi Santoso")
+	f.SetCellValue(sheet, "F6", "Produksi A")
+	f.SetCellValue(sheet, "G6", "Plant A")
+	f.SetCellValue(sheet, "H6", "4 kg")
+	f.SetCellValue(sheet, "I6", "2025-12-31")
+
+	// Add data validation for category column
+	categoryRange := colLetters[1] + "6:" + colLetters[1] + "1005"
+	_ = f.AddDataValidation(sheet, &excelize.DataValidation{
+		Type: "list",
+		Formula1: `"APAR,HYDRANT,FIRE_ALARM"`,
+		Sqref: categoryRange,
+	})
+
+	// Auto fit columns
+	for i := range headers {
+		f.SetColWidth(sheet, colLetters[i], colLetters[i], 20)
+	}
+	f.SetColWidth(sheet, "A", "A", 25)
+
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 func (s *exportService) ImportAssets(ctx context.Context, file []byte) (*ImportResult, error) {
 	f, err := excelize.OpenReader(bytes.NewReader(file))
 	if err != nil {
@@ -455,8 +529,22 @@ func (s *exportService) ImportAssets(ctx context.Context, file []byte) (*ImportR
 		colMap[strings.ToLower(strings.TrimSpace(h))] = i
 	}
 
-	// Validate required columns
-	required := []string{"name", "category", "serial_number", "location_id"}
+	// Support both old (location_id, pic_id, section_id) and new (location, pic, section) headers
+	hasOldHeaders := false
+	for _, h := range headers {
+		lower := strings.ToLower(strings.TrimSpace(h))
+		if lower == "location_id" || lower == "pic_id" || lower == "section_id" {
+			hasOldHeaders = true
+			break
+		}
+	}
+
+	var required []string
+	if hasOldHeaders {
+		required = []string{"name", "category", "serial_number", "location_id"}
+	} else {
+		required = []string{"name", "category", "serial_number", "location"}
+	}
 	for _, req := range required {
 		if _, ok := colMap[req]; !ok {
 			return nil, fmt.Errorf("kolom wajib '%s' tidak ditemukan", req)
@@ -485,20 +573,35 @@ func (s *exportService) ImportAssets(ctx context.Context, file []byte) (*ImportR
 		name := getCol("name")
 		category := getCol("category")
 		serialNumber := getCol("serial_number")
-		locationIDStr := getCol("location_id")
-		picIDStr := getCol("pic_id")
-		sectionIDStr := getCol("section_id")
+
+		var locationName string
+		var picName string
+		var sectionName string
+		if hasOldHeaders {
+			locationName = getCol("location_id")
+			picName = getCol("pic_id")
+			sectionName = getCol("section_id")
+		} else {
+			locationName = getCol("location")
+			picName = getCol("pic")
+			sectionName = getCol("section")
+		}
+
 		plant := getCol("plant")
 		size := getCol("size")
 		expiredAtStr := getCol("expired_at")
 
 		// Validate required fields
-		if name == "" || category == "" || serialNumber == "" || locationIDStr == "" {
+		if name == "" || category == "" || serialNumber == "" || locationName == "" {
+			fieldName := "location"
+			if hasOldHeaders {
+				fieldName = "location_id"
+			}
 			result.Errors = append(result.Errors, ImportError{
 				Row:    lineNum,
 				Field:  "required",
 				Value:  "",
-				Error:  "kolom wajib (name, category, serial_number, location_id) tidak boleh kosong",
+				Error:  fmt.Sprintf("kolom wajib (name, category, serial_number, %s) tidak boleh kosong", fieldName),
 			})
 			continue
 		}
@@ -522,57 +625,72 @@ func (s *exportService) ImportAssets(ctx context.Context, file []byte) (*ImportR
 			continue
 		}
 
-		locationID, err := strconv.ParseInt(locationIDStr, 10, 64)
-		if err != nil {
-			result.Errors = append(result.Errors, ImportError{
-				Row:    lineNum,
-				Field:  "location_id",
-				Value:  locationIDStr,
-				Error:  "location_id harus angka",
-			})
-			continue
-		}
-
-		// Validate location exists
-		loc, err := s.locationRepo.FindByID(ctx, locationID)
-		if err != nil || loc == nil {
-			result.Errors = append(result.Errors, ImportError{
-				Row:    lineNum,
-				Field:  "location_id",
-				Value:  locationIDStr,
-				Error:  "lokasi tidak ditemukan",
-			})
-			continue
+		// Resolve location by name (or by ID if using old format)
+		var locationID int64
+		if hasOldHeaders {
+			id, err := strconv.ParseInt(locationName, 10, 64)
+			if err != nil {
+				result.Errors = append(result.Errors, ImportError{
+					Row:    lineNum,
+					Field:  "location_id",
+					Value:  locationName,
+					Error:  "location_id harus angka",
+				})
+				continue
+			}
+			loc, err := s.locationRepo.FindByID(ctx, id)
+			if err != nil || loc == nil {
+				result.Errors = append(result.Errors, ImportError{
+					Row:    lineNum,
+					Field:  "location_id",
+					Value:  locationName,
+					Error:  "lokasi tidak ditemukan",
+				})
+				continue
+			}
+			locationID = loc.ID
+		} else {
+			loc, err := s.locationRepo.FindByName(ctx, locationName)
+			if err != nil || loc == nil {
+				result.Errors = append(result.Errors, ImportError{
+					Row:    lineNum,
+					Field:  "location",
+					Value:  locationName,
+					Error:  "lokasi tidak ditemukan. Pastikan nama lokasi sesuai dengan master data.",
+				})
+				continue
+			}
+			locationID = loc.ID
 		}
 
 		var picID *int64
-		if picIDStr != "" {
-			id, err := strconv.ParseInt(picIDStr, 10, 64)
-			if err != nil {
+		if picName != "" {
+			user, err := s.userRepo.FindByName(ctx, picName)
+			if err != nil || user == nil {
 				result.Errors = append(result.Errors, ImportError{
 					Row:    lineNum,
-					Field:  "pic_id",
-					Value:  picIDStr,
-					Error:  "pic_id harus angka",
+					Field:  "pic",
+					Value:  picName,
+					Error:  "PIC tidak ditemukan. Pastikan nama PIC sesuai dengan data user.",
 				})
 				continue
 			}
-			picID = &id
+			picID = &user.ID
 		}
 
 		var sectionID *int64
-		if sectionIDStr != "" {
-			id, err := strconv.ParseInt(sectionIDStr, 10, 64)
-			if err != nil {
+		if sectionName != "" {
+			sec, err := s.sectionRepo.FindByName(ctx, sectionName)
+			if err != nil || sec == nil {
 				result.Errors = append(result.Errors, ImportError{
 					Row:    lineNum,
-					Field:  "section_id",
-					Value:  sectionIDStr,
-					Error:  "section_id harus angka",
+					Field:  "section",
+					Value:  sectionName,
+					Error:  "section tidak ditemukan. Pastikan nama section sesuai dengan master data.",
 				})
 				continue
 			}
-			sectionID = &id
+			sectionID = &sec.ID
 		}
 
 		var expiredAt *time.Time

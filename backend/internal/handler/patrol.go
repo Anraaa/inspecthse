@@ -1,9 +1,15 @@
 package handler
 
 import (
+	"crypto/rand"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/anomalyco/inspecthse/internal/middleware"
 	"github.com/anomalyco/inspecthse/internal/model"
@@ -17,6 +23,55 @@ type PatrolHandler struct {
 
 func NewPatrolHandler(svc service.PatrolService) *PatrolHandler {
 	return &PatrolHandler{svc: svc}
+}
+
+func generateRandomString(n int) string {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%x", b)
+}
+
+func (h *PatrolHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseMultipartForm(10 << 20) // 10MB max
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "file terlalu besar atau format tidak valid")
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "file tidak ditemukan")
+		return
+	}
+	defer file.Close()
+
+	uploadDir := "./uploads"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		respondError(w, http.StatusInternalServerError, "gagal membuat direktori upload: "+err.Error())
+		return
+	}
+
+	ext := filepath.Ext(header.Filename)
+	filename := fmt.Sprintf("%d-%s%s", time.Now().UnixNano(), generateRandomString(4), ext)
+	filePath := filepath.Join(uploadDir, filename)
+
+	out, err := os.Create(filePath)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "gagal menyimpan file: "+err.Error())
+		return
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, file); err != nil {
+		respondError(w, http.StatusInternalServerError, "gagal menyalin file: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{
+		"file_path": "/uploads/" + filename,
+	})
 }
 
 type submitPatrolRequest struct {

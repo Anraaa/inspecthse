@@ -1,7 +1,9 @@
-import { useState, useMemo } from "react";
-import { Search, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import type { ColumnDef } from "@/lib/masterData";
 import { useThemeStore } from "@/lib/theme";
+import { debounce } from "@/lib/utils";
+import { Pagination } from "@/components/Pagination";
 
 interface DataTableProps {
   columns: ColumnDef[];
@@ -23,6 +25,18 @@ export function DataTable({
   const theme = useThemeStore((s) => s.theme);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [localSearch, setLocalSearch] = useState(search);
+  const debouncedSearch = useRef(debounce((v: string) => onSearch(v), 300)).current;
+
+  useEffect(() => {
+    setLocalSearch(search);
+  }, [search]);
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value;
+    setLocalSearch(v);
+    debouncedSearch(v);
+  }, [debouncedSearch]);
 
   const sorted = useMemo(() => {
     if (!sortKey) return data;
@@ -34,9 +48,6 @@ export function DataTable({
       return sortDir === "asc" ? cmp : -cmp;
     });
   }, [data, sortKey, sortDir]);
-
-  const pageCount = total != null ? Math.ceil(total / limit) : 1;
-  const currentPage = Math.floor(offset / limit) + 1;
 
   const handleSort = (key: string) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -50,8 +61,8 @@ export function DataTable({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            value={search}
-            onChange={(e) => onSearch(e.target.value)}
+            value={localSearch}
+            onChange={handleSearchChange}
             placeholder="Search..."
             className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition-all focus:ring-2"
             style={{ "--tw-ring-color": `${theme.colors[500]}40` } as React.CSSProperties}
@@ -138,26 +149,8 @@ export function DataTable({
         </table>
       </div>
 
-      {total != null && pageCount > 1 && (
-        <div className="flex items-center justify-between mt-4">
-          <span className="text-sm text-gray-400">Page {currentPage} of {pageCount}</span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onPage(Math.max(0, offset - limit))}
-              disabled={offset === 0}
-              className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => onPage(offset + limit)}
-              disabled={offset + limit >= (total ?? 0)}
-              className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+      {total != null && (
+        <Pagination offset={offset} limit={limit} total={total} onPage={onPage} />
       )}
     </div>
   );

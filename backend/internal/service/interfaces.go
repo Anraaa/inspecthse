@@ -80,15 +80,30 @@ type PatrolService interface {
 	GhostEdit(ctx context.Context, patrolID int64, details []model.PatrolDetail, editedBy int64) error
 }
 
+type ExpiredAssetService interface {
+	CheckExpiredAssets(ctx context.Context) error
+}
+
 type AlertService interface {
 	CreateAnomalyAlert(ctx context.Context, patrolID, assetID, picID int64, message string) error
+	CreateApprovalAlert(ctx context.Context, patrolID, assetID, userID int64, message string) error
+	CreateExpiredAssetAlert(ctx context.Context, assetID, picID int64, message string) error
 	ListByUserID(ctx context.Context, userID int64) ([]model.Alert, error)
+	ListByUserIDWithFilter(ctx context.Context, userID int64, isRead *bool, offset, limit int) ([]model.Alert, int, error)
+	UnreadCount(ctx context.Context, userID int64) (int, error)
 	MarkAsRead(ctx context.Context, id int64) error
+	MarkAllAsRead(ctx context.Context, userID int64) error
+}
+
+type ActivityLogService interface {
+	Log(ctx context.Context, userID int64, action, entity string, entityID int64, oldValue, newValue string, isGhost bool) error
+	ListByUserID(ctx context.Context, userID int64, offset, limit int) ([]model.ActivityLog, int, error)
 }
 
 type ExportService interface {
 	ExportChecksheet(ctx context.Context, year int, category model.AssetCategory, locationID, sectionID int64) ([]byte, error)
 	ImportAssets(ctx context.Context, file []byte) (*ImportResult, error)
+	DownloadImportTemplate(ctx context.Context) ([]byte, error)
 }
 
 type ImportResult struct {

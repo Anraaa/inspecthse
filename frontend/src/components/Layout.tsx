@@ -12,14 +12,20 @@ import {
   LogOut,
   Menu,
   X,
+  Settings,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { useThemeStore, themePresets } from "@/lib/theme";
+import { useDarkMode } from "@/lib/darkMode";
+import { NotificationBell } from "./NotificationBell";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["SUPER_ADMIN", "K3L", "TIM_HSE"] as const },
   { to: "/scan", label: "Scan QR", icon: Scan, roles: ["K3L", "TIM_HSE"] as const },
   { to: "/inspeksi-lapangan", label: "Inspeksi Lapangan", icon: ClipboardCheck, roles: ["K3L"] as const },
   { to: "/patrols", label: "Patroli", icon: ClipboardCheck, roles: ["K3L", "TIM_HSE", "SUPER_ADMIN"] as const },
+
   { to: "/sections", label: "Master Data", icon: Database, roles: ["SUPER_ADMIN"] as const },
   { to: "/users", label: "Users", icon: Users, roles: ["SUPER_ADMIN"] as const },
   { to: "/export-hse", label: "Export HSE", icon: FileSpreadsheet, roles: ["SUPER_ADMIN"] as const },
@@ -31,7 +37,9 @@ export function Layout() {
   const { user, logout } = useAuthStore();
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
+  const { isDark, toggle: toggleDark } = useDarkMode();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -132,19 +140,58 @@ export function Layout() {
           </div>
 
           <div className="flex items-center gap-3 sm:gap-4">
-            <div className="flex items-center gap-1.5 pr-2 sm:pr-4 border-r border-gray-100">
-              {themePresets.map((t) => (
-                <button
-                  key={t.name}
-                  onClick={() => setTheme(t.name)}
-                  title={t.label}
-                  className="w-4 h-4 sm:w-5 sm:h-5 rounded-full transition-all hover:scale-125"
-                  style={{
-                    background: `linear-gradient(135deg, ${t.colors[500]}, ${t.colors[400]})`,
-                    boxShadow: theme.name === t.name ? `0 0 0 2px white, 0 0 0 4px ${t.colors[500]}` : "none",
-                  }}
-                />
-              ))}
+            <button
+              onClick={toggleDark}
+              className="p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all focus:outline-none"
+              title={isDark ? "Mode Terang" : "Mode Gelap"}
+            >
+              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            <NotificationBell />
+            <div className="relative flex items-center pr-2 sm:pr-4 border-r border-gray-100">
+              <button
+                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                className={cn(
+                  "p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all focus:outline-none",
+                  isSettingsOpen && "bg-gray-100 text-gray-900"
+                )}
+                title="Settings"
+              >
+                <Settings className={cn("w-5 h-5 transition-transform duration-300", isSettingsOpen && "rotate-45")} />
+              </button>
+
+              {isSettingsOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-30"
+                    onClick={() => setIsSettingsOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-2 w-44 bg-white rounded-xl shadow-lg border border-gray-100 py-3 px-3.5 z-40">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">
+                      Pilih Tema
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {themePresets.map((t) => (
+                        <button
+                          key={t.name}
+                          onClick={() => setTheme(t.name)}
+                          title={t.label}
+                          className="w-10 h-10 rounded-full transition-all hover:scale-110 active:scale-95 focus:outline-none flex items-center justify-center relative group"
+                          style={{
+                            background: `linear-gradient(135deg, ${t.colors[500]}, ${t.colors[400]})`,
+                          }}
+                        >
+                          {theme.name === t.name ? (
+                            <div className="w-3 h-3 rounded-full bg-white shadow-sm" />
+                          ) : (
+                            <div className="w-2 h-2 rounded-full bg-white/0 group-hover:bg-white/40 transition-colors" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="flex items-center gap-2">

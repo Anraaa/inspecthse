@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
 import { formatDate } from "@/lib/utils";
 import type { Asset, Patrol, Shift } from "@/types";
 import { ArrowLeft, ClipboardCheck, Clock, CheckCircle, XCircle, Eye, Calendar, Shield } from "lucide-react";
+import { Pagination } from "@/components/Pagination";
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; icon: any }> = {
   draft: { label: "Draft", color: "text-gray-600", bg: "bg-gray-100", icon: Clock },
@@ -16,6 +18,8 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; i
 export function InspeksiAssetPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [offset, setOffset] = useState(0);
+  const limit = 10;
 
   // 1. Fetch asset details
   const { data: asset, isLoading: assetLoading } = useQuery({
@@ -39,9 +43,9 @@ export function InspeksiAssetPage() {
 
   // 3. Fetch patrol history for this asset
   const { data: patrolHistoryRes, isLoading: historyLoading } = useQuery({
-    queryKey: ["patrol-history-by-asset", id],
+    queryKey: ["patrol-history-by-asset", id, offset],
     queryFn: async () => {
-      const res = await api.get("/patrols", { params: { asset_id: id, limit: 50 } });
+      const res = await api.get("/patrols", { params: { asset_id: id, limit, offset } });
       return res.data as { data: Patrol[]; total: number };
     },
     enabled: !!id,
@@ -160,58 +164,61 @@ export function InspeksiAssetPage() {
           <p className="text-gray-500 font-medium text-sm">Belum ada riwayat inspeksi untuk aset ini.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-gray-50">
-                <th className="text-left px-4 py-3 font-medium text-gray-500">ID</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Shift</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Tgl Kirim</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {patrols.map((p) => {
-                const cfg = statusConfig[p.status] || statusConfig.draft;
-                const Icon = cfg.icon;
-                const isPending = p.status === "waiting_approval";
-                return (
-                  <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="px-4 py-3 font-mono text-xs">#{p.id}</td>
-                    <td className="px-4 py-3">{shiftMap?.[p.shift_id] ? `Shift ${shiftMap[p.shift_id]}` : `Shift #${p.shift_id}`}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.color}`}>
-                        <Icon className="w-3 h-3" />
-                        {cfg.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">
-                      {p.submitted_at ? formatDate(p.submitted_at) : "-"}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {isPending ? (
-                        <button
-                          onClick={() => navigate(`/patrols/${p.id}`)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-extrabold inline-flex items-center gap-1 text-white transition-all bg-amber-500 hover:bg-amber-600 animate-pulse"
-                        >
-                          Tinjau & Validasi
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => navigate(`/patrols/${p.id}`)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 text-white transition-all bg-gray-500 hover:bg-gray-600"
-                        >
-                          <Eye className="w-3 h-3" /> Detail
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50">
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">ID</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">Shift</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">Tgl Kirim</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-500">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {patrols.map((p) => {
+                  const cfg = statusConfig[p.status] || statusConfig.draft;
+                  const Icon = cfg.icon;
+                  const isPending = p.status === "waiting_approval";
+                  return (
+                    <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-mono text-xs">#{p.id}</td>
+                      <td className="px-4 py-3">{shiftMap?.[p.shift_id] ? `Shift ${shiftMap[p.shift_id]}` : `Shift #${p.shift_id}`}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.color}`}>
+                          <Icon className="w-3 h-3" />
+                          {cfg.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">
+                        {p.submitted_at ? formatDate(p.submitted_at) : "-"}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {isPending ? (
+                          <button
+                            onClick={() => navigate(`/patrols/${p.id}`)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-extrabold inline-flex items-center gap-1 text-white transition-all bg-amber-500 hover:bg-amber-600 animate-pulse"
+                          >
+                            Tinjau & Validasi
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => navigate(`/patrols/${p.id}`)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 text-white transition-all bg-gray-500 hover:bg-gray-600"
+                          >
+                            <Eye className="w-3 h-3" /> Detail
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <Pagination offset={offset} limit={limit} total={patrolHistoryRes?.total || 0} onPage={setOffset} />
+        </>
       )}
     </div>
   );

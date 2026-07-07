@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1e40af" />
+  <title>Offline — InspectHSE</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f9fafb;
+      color: #111827;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .container { text-align: center; max-width: 400px; }
+    .icon {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #6366f1, #818cf8);
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1.5rem;
+      color: white; font-size: 2.5rem; font-weight: bold;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    p { color: #6b7280; line-height: 1.5; }
+    .btn {
+      display: inline-block; margin-top: 1rem;
+      padding: 0.75rem 2rem;
+      background: #6366f1; color: white;
+      border: none; border-radius: 12px;
+      font-size: 0.875rem; font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">I</div>
+    <h1>Anda Sedang Offline</h1>
+    <p>Koneksi internet terputus. Silakan periksa koneksi Anda dan coba lagi.</p>
+    <button class="btn" onclick="window.location.reload()">Coba Lagi</button>
+  </div>
+</body>
+</html>

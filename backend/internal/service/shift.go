@@ -8,23 +8,49 @@ import (
 )
 
 type shiftService struct {
-	repo repository.ShiftRepository
+	repo   repository.ShiftRepository
+	logSvc ActivityLogService
 }
 
-func NewShiftService(repo repository.ShiftRepository) ShiftService {
-	return &shiftService{repo: repo}
+func NewShiftService(repo repository.ShiftRepository, logSvc ActivityLogService) ShiftService {
+	return &shiftService{repo: repo, logSvc: logSvc}
 }
 
 func (s *shiftService) Create(ctx context.Context, shift *model.Shift) error {
-	return s.repo.Create(ctx, shift)
+	err := s.repo.Create(ctx, shift)
+	if err != nil {
+		return err
+	}
+	s.logSvc.Log(ctx, getCurrentUserID(ctx), "create", "shift", shift.ID, "", shift.Name, false)
+	return nil
 }
 
 func (s *shiftService) Update(ctx context.Context, shift *model.Shift) error {
-	return s.repo.Update(ctx, shift)
+	old, _ := s.repo.FindByID(ctx, shift.ID)
+	err := s.repo.Update(ctx, shift)
+	if err != nil {
+		return err
+	}
+	oldVal := ""
+	if old != nil {
+		oldVal = old.Name
+	}
+	s.logSvc.Log(ctx, getCurrentUserID(ctx), "update", "shift", shift.ID, oldVal, shift.Name, false)
+	return nil
 }
 
 func (s *shiftService) Delete(ctx context.Context, id int64) error {
-	return s.repo.Delete(ctx, id)
+	old, _ := s.repo.FindByID(ctx, id)
+	err := s.repo.Delete(ctx, id)
+	if err != nil {
+		return err
+	}
+	oldVal := ""
+	if old != nil {
+		oldVal = old.Name
+	}
+	s.logSvc.Log(ctx, getCurrentUserID(ctx), "delete", "shift", id, oldVal, "", false)
+	return nil
 }
 
 func (s *shiftService) GetByID(ctx context.Context, id int64) (*model.Shift, error) {

@@ -9,6 +9,7 @@ import (
 type UserRepository interface {
 	FindByID(ctx context.Context, id int64) (*model.User, error)
 	FindByEmail(ctx context.Context, email string) (*model.User, error)
+	FindByName(ctx context.Context, name string) (*model.User, error)
 	Create(ctx context.Context, user *model.User) error
 	Update(ctx context.Context, user *model.User) error
 	List(ctx context.Context, offset, limit int) ([]model.User, int, error)
@@ -17,6 +18,7 @@ type UserRepository interface {
 type AssetRepository interface {
 	FindByID(ctx context.Context, id int64) (*model.Asset, error)
 	FindByQRCode(ctx context.Context, qrCode string) (*model.Asset, error)
+	FindExpiringAssets(ctx context.Context, withinDays int) ([]model.Asset, error)
 	Create(ctx context.Context, asset *model.Asset) error
 	Update(ctx context.Context, asset *model.Asset) error
 	Delete(ctx context.Context, id int64) error
@@ -26,6 +28,7 @@ type AssetRepository interface {
 type LocationRepository interface {
 	FindByID(ctx context.Context, id int64) (*model.Location, error)
 	FindByQRCode(ctx context.Context, qrCode string) (*model.Location, error)
+	FindByName(ctx context.Context, name string) (*model.Location, error)
 	Create(ctx context.Context, location *model.Location) error
 	Update(ctx context.Context, location *model.Location) error
 	Delete(ctx context.Context, id int64) error
@@ -34,6 +37,7 @@ type LocationRepository interface {
 
 type SectionRepository interface {
 	FindByID(ctx context.Context, id int64) (*model.Section, error)
+	FindByName(ctx context.Context, name string) (*model.Section, error)
 	Create(ctx context.Context, section *model.Section) error
 	Update(ctx context.Context, section *model.Section) error
 	Delete(ctx context.Context, id int64) error
@@ -79,10 +83,18 @@ type PatrolAttachmentRepository interface {
 type AlertRepository interface {
 	Create(ctx context.Context, alert *model.Alert) error
 	ListByUserID(ctx context.Context, userID int64) ([]model.Alert, error)
+	ListByUserIDWithFilter(ctx context.Context, userID int64, isRead *bool, offset, limit int) ([]model.Alert, int, error)
+	UnreadCount(ctx context.Context, userID int64) (int, error)
 	MarkAsRead(ctx context.Context, id int64) error
+	MarkAllAsRead(ctx context.Context, userID int64) error
 }
 
 type ActivityLogRepository interface {
 	Create(ctx context.Context, log *model.ActivityLog) error
 	List(ctx context.Context, entity string, entityID int64, offset, limit int) ([]model.ActivityLog, int, error)
+	ListByUserID(ctx context.Context, userID int64, offset, limit int) ([]model.ActivityLog, int, error)
+}
+
+type ExpiringAssetRepository interface {
+	FindExpiringAssets(ctx context.Context, withinDays int) ([]model.Asset, error)
 }
