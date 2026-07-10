@@ -19,6 +19,7 @@ func Seed(db *sqlx.DB) {
 	seedSections(db)
 	seedLocations(db)
 	seedShifts(db)
+	seedRoles(db)
 	seedUsers(db)
 	seedAssets(db)
 	seedHSEParameters(db)
@@ -28,7 +29,7 @@ func Seed(db *sqlx.DB) {
 
 func isSeeded(db *sqlx.DB) bool {
 	var count int
-	if err := db.Get(&count, "SELECT COUNT(*) FROM sections"); err != nil || count > 0 {
+	if err := db.Get(&count, "SELECT COUNT(*) FROM roles"); err != nil || count > 0 {
 		return true
 	}
 	return false
@@ -87,15 +88,16 @@ func seedShifts(db *sqlx.DB) {
 func seedUsers(db *sqlx.DB) {
 	users := []struct {
 		Name      string
+		NIP       string
 		Email     string
 		Password  string
 		Role      string
 		SectionID int
 	}{
-		{"Admin Utama", "admin@inspecthse.com", "admin123", "SUPER_ADMIN", 1},
-		{"Budi K3L", "budi@inspecthse.com", "k3l123", "K3L", 1},
-		{"Ani K3L", "ani@inspecthse.com", "k3l123", "K3L", 2},
-		{"Citra HSE", "citra@inspecthse.com", "hse123", "TIM_HSE", 1},
+		{"Admin Utama", "26-0134", "admin@inspecthse.com", "admin123", "SUPER_ADMIN", 1},
+		{"Budi K3L", "10-0123", "budi@inspecthse.com", "k3l123", "K3L", 1},
+		{"Ani K3L", "10-0124", "ani@inspecthse.com", "k3l123", "K3L", 2},
+		{"Citra HSE", "12-0456", "citra@inspecthse.com", "hse123", "TIM_HSE", 1},
 	}
 
 	for _, u := range users {
@@ -104,15 +106,43 @@ func seedUsers(db *sqlx.DB) {
 			log.Printf("  failed to hash password for %s: %v", u.Email, err)
 			continue
 		}
-		_, err = db.Exec(
-			"INSERT IGNORE INTO users (name, email, password, role, section_id, is_active) VALUES (?, ?, ?, ?, ?, TRUE)",
-			u.Name, u.Email, string(hash), u.Role, u.SectionID,
+		result, err := db.Exec(
+			"INSERT IGNORE INTO users (name, nip, email, password, role, section_id, is_active) VALUES (?, ?, ?, ?, ?, ?, TRUE)",
+			u.Name, u.NIP, u.Email, string(hash), u.Role, u.SectionID,
 		)
 		if err != nil {
 			log.Printf("  failed to insert user %s: %v", u.Email, err)
 		}
+		// If user already exists (INSERT IGNORE), update their NIP
+		affected, _ := result.RowsAffected()
+		if affected == 0 {
+			db.Exec("UPDATE users SET nip = ? WHERE email = ?", u.NIP, u.Email)
+		}
 	}
 	fmt.Println("  seeded 4 users")
+}
+
+func seedRoles(db *sqlx.DB) {
+	roles := []struct {
+		Name        string
+		DisplayName string
+		Description string
+	}{
+		{"SUPER_ADMIN", "Super Admin", "Akses penuh ke seluruh sistem"},
+		{"K3L", "K3L", "Petugas K3L lapangan"},
+		{"TIM_HSE", "Tim HSE", "Tim HSE yang melakukan approval"},
+	}
+
+	for _, r := range roles {
+		_, err := db.Exec(
+			"INSERT IGNORE INTO roles (name, display_name, description, is_system) VALUES (?, ?, ?, TRUE)",
+			r.Name, r.DisplayName, r.Description,
+		)
+		if err != nil {
+			log.Printf("  failed to insert role %s: %v", r.Name, err)
+		}
+	}
+	fmt.Println("  seeded 3 roles")
 }
 
 func seedAssets(db *sqlx.DB) {
@@ -157,14 +187,19 @@ func seedHSEParameters(db *sqlx.DB) {
 		Order    int
 		Required bool
 	}{
-		// APAR parameters
-		{"APAR", "Kondisi fisik tabung (tidak penyok/karat)", "boolean", "", "", "fisik", 1, true},
-		{"APAR", "Tekanan gauge dalam zona hijau", "boolean", "", "", "fisik", 2, true},
-		{"APAR", "Segel pin pengaman masih utuh", "boolean", "", "", "fisik", 3, true},
-		{"APAR", "Label instruksi terbaca jelas", "boolean", "", "", "fisik", 4, true},
-		{"APAR", "Akses ke APAR tidak terhalang", "boolean", "", "", "fisik", 5, true},
-		{"APAR", "Berat tabung (kg)", "numeric", "kg", "", "fisik", 6, false},
-		{"APAR", "Catatan tambahan", "text", "", "", "fisik", 7, false},
+		// APAR parameters (HSE-F-15 aligned)
+		{"APAR", "Tuas", "boolean", "", "", "fisik", 1, true},
+		{"APAR", "Segel Tuas", "boolean", "", "", "fisik", 2, true},
+		{"APAR", "Pin", "boolean", "", "", "fisik", 3, true},
+		{"APAR", "Selang", "boolean", "", "", "fisik", 4, true},
+		{"APAR", "Nozzle", "boolean", "", "", "fisik", 5, true},
+		{"APAR", "Tekanan/Isi", "boolean", "", "", "fisik", 6, true},
+		{"APAR", "Tabung", "boolean", "", "", "fisik", 7, true},
+		{"APAR", "Label/Petunjuk", "boolean", "", "", "fisik", 8, true},
+		{"APAR", "Akses", "boolean", "", "", "fisik", 9, true},
+		{"APAR", "Kebersihan", "boolean", "", "", "fisik", 10, true},
+		{"APAR", "Berat tabung (kg)", "numeric", "kg", "", "fisik", 11, false},
+		{"APAR", "Catatan tambahan", "text", "", "", "fisik", 12, false},
 
 		// Hydrant parameters
 		{"HYDRANT", "Kondisi fisik box hydrant", "boolean", "", "", "fisik", 1, true},
@@ -200,5 +235,5 @@ func seedHSEParameters(db *sqlx.DB) {
 			log.Printf("  failed to insert parameter '%s': %v", p.Name, err)
 		}
 	}
-	fmt.Println("  seeded 22 HSE parameters")
+	fmt.Println("  seeded 27 HSE parameters")
 }

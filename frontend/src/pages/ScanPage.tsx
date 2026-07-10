@@ -38,7 +38,7 @@ export function ScanPage() {
               });
               const pendingPatrols = res.data?.data || [];
               if (pendingPatrols.length > 0) {
-                navigate(`/patrols/${pendingPatrols[0].id}`);
+                navigate(`/patrols/${pendingPatrols[0].id}?from=scan`);
               } else {
                 navigate(`/inspeksi-asset/${asset.id}`);
               }

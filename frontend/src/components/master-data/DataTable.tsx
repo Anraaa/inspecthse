@@ -38,16 +38,20 @@ export function DataTable({
     debouncedSearch(v);
   }, [debouncedSearch]);
 
-  const sorted = useMemo(() => {
-    if (!sortKey) return data;
-    return [...data].sort((a, b) => {
+  const isServerPaginated = total != null;
+  const effectiveTotal = isServerPaginated ? total : data.length;
+
+  const displayData = useMemo(() => {
+    const sorted = !sortKey ? [...data] : [...data].sort((a, b) => {
       const av = a[sortKey], bv = b[sortKey];
       if (av == null) return 1;
       if (bv == null) return -1;
       const cmp = typeof av === "number" ? av - (bv as number) : String(av).localeCompare(String(bv));
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [data, sortKey, sortDir]);
+    if (isServerPaginated) return sorted;
+    return sorted.slice(offset, offset + limit);
+  }, [data, sortKey, sortDir, isServerPaginated, offset, limit]);
 
   const handleSort = (key: string) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -68,11 +72,11 @@ export function DataTable({
             style={{ "--tw-ring-color": `${theme.colors[500]}40` } as React.CSSProperties}
           />
         </div>
-        {total != null && <span className="text-sm text-gray-400">{total} records</span>}
+        <span className="text-sm text-gray-400">{effectiveTotal} records</span>
       </div>
 
       <div className="overflow-x-auto border border-gray-100 rounded-xl">
-        <table className="w-full">
+        <table className="w-full min-w-[500px]">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
               {columns.map((col) => (
@@ -106,7 +110,7 @@ export function DataTable({
                   </div>
                 </td>
               </tr>
-            ) : sorted.length === 0 ? (
+            ) : displayData.length === 0 ? (
               <tr>
                 <td colSpan={columns.length + 1} className="px-4 py-16 text-center text-sm text-gray-400">
                   <p className="mb-1 text-lg">📭</p>
@@ -114,7 +118,7 @@ export function DataTable({
                 </td>
               </tr>
             ) : (
-              sorted.map((row, i) => (
+              displayData.map((row, i) => (
                 <tr key={String(row.id ?? i)} className="hover:bg-gray-50 transition-colors group">
                   {columns.map((col) => (
                     <td key={col.key} className="px-4 py-3 text-sm text-gray-700">
@@ -122,7 +126,7 @@ export function DataTable({
                     </td>
                   ))}
                   <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity sm:opacity-100 sm:group-hover:opacity-100">
                       {onEdit && (
                         <button
                           onClick={() => onEdit(row)}
@@ -149,8 +153,8 @@ export function DataTable({
         </table>
       </div>
 
-      {total != null && (
-        <Pagination offset={offset} limit={limit} total={total} onPage={onPage} />
+      {effectiveTotal > limit && (
+        <Pagination offset={offset} limit={limit} total={effectiveTotal} onPage={onPage} />
       )}
     </div>
   );

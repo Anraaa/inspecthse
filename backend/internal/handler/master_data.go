@@ -37,7 +37,27 @@ func NewMasterDataHandler(
 }
 
 func (h *MasterDataHandler) ListLocations(w http.ResponseWriter, r *http.Request) {
-	data, err := h.locationSvc.List(r.Context())
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit > 0 {
+		if limit > 100 {
+			limit = 100
+		}
+		data, total, err := h.locationSvc.List(r.Context(), offset, limit)
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		respondJSON(w, http.StatusOK, map[string]interface{}{
+			"data":   data,
+			"total":  total,
+			"offset": offset,
+			"limit":  limit,
+		})
+		return
+	}
+
+	data, _, err := h.locationSvc.List(r.Context(), 0, 1000000)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -86,7 +106,27 @@ func (h *MasterDataHandler) DeleteLocation(w http.ResponseWriter, r *http.Reques
 
 // Sections
 func (h *MasterDataHandler) ListSections(w http.ResponseWriter, r *http.Request) {
-	data, err := h.sectionSvc.List(r.Context())
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit > 0 {
+		if limit > 100 {
+			limit = 100
+		}
+		data, total, err := h.sectionSvc.List(r.Context(), offset, limit)
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		respondJSON(w, http.StatusOK, map[string]interface{}{
+			"data":   data,
+			"total":  total,
+			"offset": offset,
+			"limit":  limit,
+		})
+		return
+	}
+
+	data, _, err := h.sectionSvc.List(r.Context(), 0, 1000000)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -125,7 +165,27 @@ func (h *MasterDataHandler) DeleteSection(w http.ResponseWriter, r *http.Request
 
 // Shifts
 func (h *MasterDataHandler) ListShifts(w http.ResponseWriter, r *http.Request) {
-	data, err := h.shiftSvc.List(r.Context())
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit > 0 {
+		if limit > 100 {
+			limit = 100
+		}
+		data, total, err := h.shiftSvc.List(r.Context(), offset, limit)
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		respondJSON(w, http.StatusOK, map[string]interface{}{
+			"data":   data,
+			"total":  total,
+			"offset": offset,
+			"limit":  limit,
+		})
+		return
+	}
+
+	data, _, err := h.shiftSvc.List(r.Context(), 0, 1000000)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -174,7 +234,28 @@ func (h *MasterDataHandler) ListParameters(w http.ResponseWriter, r *http.Reques
 		respondJSON(w, http.StatusOK, data)
 		return
 	}
-	data, err := h.paramSvc.List(r.Context())
+
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit > 0 {
+		if limit > 100 {
+			limit = 100
+		}
+		data, total, err := h.paramSvc.List(r.Context(), offset, limit)
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		respondJSON(w, http.StatusOK, map[string]interface{}{
+			"data":   data,
+			"total":  total,
+			"offset": offset,
+			"limit":  limit,
+		})
+		return
+	}
+
+	data, _, err := h.paramSvc.List(r.Context(), 0, 1000000)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return

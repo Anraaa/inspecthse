@@ -212,6 +212,22 @@ func (s *patrolService) GetByID(ctx context.Context, id int64) (*PatrolDetailRes
 	}, nil
 }
 
+func (s *patrolService) Delete(ctx context.Context, patrolID, userID int64) error {
+	if err := s.patrolRepo.Delete(ctx, patrolID); err != nil {
+		return err
+	}
+
+	s.activityLogRepo.Create(ctx, &model.ActivityLog{
+		UserID:   userID,
+		Action:   "delete",
+		Entity:   "patrol",
+		EntityID: patrolID,
+		NewValue: "deleted",
+	})
+
+	return nil
+}
+
 func (s *patrolService) List(ctx context.Context, filter map[string]interface{}, offset, limit int) ([]model.Patrol, int, error) {
 	return s.patrolRepo.List(ctx, filter, offset, limit)
 }

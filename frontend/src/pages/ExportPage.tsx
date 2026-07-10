@@ -34,6 +34,13 @@ interface SectionItem {
   name: string;
 }
 
+interface AssetItem {
+  id: number;
+  name: string;
+  serial_number: string;
+  location_id: number;
+}
+
 interface ImportError {
   row: number;
   field: string;
@@ -57,7 +64,9 @@ export function ExportPage() {
   const [sectionID, setSectionID] = useState("");
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [sections, setSections] = useState<SectionItem[]>([]);
-  
+  const [assets, setAssets] = useState<AssetItem[]>([]);
+  const [assetID, setAssetID] = useState("");
+
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
@@ -129,6 +138,31 @@ export function ExportPage() {
     fetchCount();
   }, [category, locationID, sectionID]);
 
+  // Fetch assets list for per-asset export (APAR only)
+  useEffect(() => {
+    if (category !== "APAR") {
+      setAssets([]);
+      setAssetID("");
+      return;
+    }
+    const fetchAssets = async () => {
+      try {
+        const res = await api.get("/assets", {
+          params: {
+            category: "APAR",
+            location_id: locationID || undefined,
+            section_id: sectionID || undefined,
+            limit: 1000,
+          },
+        });
+        setAssets(res.data?.data || []);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchAssets();
+  }, [category, locationID, sectionID]);
+
   // Handle Export Download
   const handleExport = async () => {
     setExporting(true);
@@ -146,6 +180,8 @@ export function ExportPage() {
           category,
           location_id: locationID || undefined,
           section_id: sectionID || undefined,
+          asset_id: assetID || undefined,
+          _t: Date.now(),
         },
         responseType: "blob",
       });
@@ -156,7 +192,10 @@ export function ExportPage() {
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement("a");
       a.href = url;
-      a.download = `checksheet-${category}-${year}.xlsx`;
+      const selectedAsset = assets.find((a) => a.id.toString() === assetID);
+      a.download = selectedAsset
+        ? `HSE-F-15-${selectedAsset.name.replace(/\s+/g, "_")}-${year}.xlsx`
+        : `checksheet-${category}-${year}.xlsx`;
       a.click();
       window.URL.revokeObjectURL(url);
 
@@ -352,27 +391,27 @@ export function ExportPage() {
         </div>
 
         {/* Tab Controls */}
-        <div className="flex bg-gray-100 p-1 rounded-xl w-fit">
+        <div className="flex bg-gray-100 p-1 rounded-xl w-full sm:w-fit overflow-x-auto">
           <button
             onClick={() => setActiveTab("export")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap flex-1 sm:flex-none ${
               activeTab === "export"
                 ? "bg-white text-gray-900 shadow-sm"
                 : "text-gray-600 hover:text-gray-900"
             }`}
           >
-            <FileSpreadsheet className="w-4 h-4" />
+            <FileSpreadsheet className="w-4 h-4 shrink-0" />
             Ekspor Checksheet
           </button>
           <button
             onClick={() => setActiveTab("import")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap flex-1 sm:flex-none ${
               activeTab === "import"
                 ? "bg-white text-gray-900 shadow-sm"
                 : "text-gray-600 hover:text-gray-900"
             }`}
           >
-            <Upload className="w-4 h-4" />
+            <Upload className="w-4 h-4 shrink-0" />
             Impor Aset
           </button>
         </div>
@@ -443,6 +482,23 @@ export function ExportPage() {
                     ))}
                   </select>
                 </div>
+
+                {category === "APAR" && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Aset APAR</label>
+                    <select
+                      value={assetID}
+                      onChange={(e) => setAssetID(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 text-gray-800 focus:outline-none focus:ring-2"
+                      style={{ "--tw-ring-color": theme.colors[500] } as React.CSSProperties}
+                    >
+                      <option value="">Semua APAR</option>
+                      {assets.map((a) => (
+                        <option key={a.id} value={a.id.toString()}>{a.name} {a.serial_number ? `(${a.serial_number})` : ""}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Live Count Preview */}
@@ -547,8 +603,8 @@ export function ExportPage() {
                       </span>
                     </div>
                     <div className="text-gray-500 leading-normal">
-                      <p>Lokasi: <span className="text-gray-700">{item.location}</span></p>
-                      <p>Section: <span className="text-gray-700">{item.section}</span></p>
+                      <p className="truncate">Lokasi: <span className="text-gray-700">{item.location}</span></p>
+                      <p className="truncate">Section: <span className="text-gray-700">{item.section}</span></p>
                     </div>
                     <div className="text-[10px] text-gray-400 text-right pt-1">{item.timestamp}</div>
                   </div>
@@ -561,11 +617,11 @@ export function ExportPage() {
         /* Import Tab */
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h3 className="text-lg font-bold text-gray-900">Unggah Berkas Master Data Aset</h3>
               <button
                 onClick={handleDownloadTemplate}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white shadow-md hover:opacity-95 transition-all"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white shadow-md hover:opacity-95 transition-all"
                 style={{ backgroundColor: theme.colors[500] }}
               >
                 <Download className="w-4 h-4" />

@@ -23,7 +23,7 @@ export const useNotificationStore = create<NotificationState>((set) => ({
     set({ loading: true });
     try {
       const res = await fetchAlerts(params);
-      set({ alerts: res.data, total: res.total });
+      set({ alerts: res?.data ?? [], total: res?.total ?? 0 });
     } finally {
       set({ loading: false });
     }

@@ -11,7 +11,7 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 )
 
-func New(cfg *config.Config, authH *handler.AuthHandler, assetH *handler.AssetHandler, patrolH *handler.PatrolHandler, masterH *handler.MasterDataHandler, dashH *handler.DashboardHandler, exportH *handler.ExportHandler, alertH *handler.AlertHandler) *chi.Mux {
+func New(cfg *config.Config, authH *handler.AuthHandler, assetH *handler.AssetHandler, patrolH *handler.PatrolHandler, masterH *handler.MasterDataHandler, dashH *handler.DashboardHandler, exportH *handler.ExportHandler, alertH *handler.AlertHandler, roleH *handler.RoleHandler, permH *handler.PermissionHandler) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(chimw.Logger)
@@ -55,12 +55,18 @@ func New(cfg *config.Config, authH *handler.AuthHandler, assetH *handler.AssetHa
 			r.Put("/alerts/read-all", alertH.MarkAllAsRead)
 			r.Put("/alerts/{id}/read", alertH.MarkAsRead)
 
-			// Approval - HSE only
+			// User permissions - any authenticated user
+			r.Get("/auth/permissions", authH.UserPermissions)
+
+			// Approval - HSE & Super Admin
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.RBACMiddleware(string(model.RoleTimHSE), string(model.RoleSuperAdmin)))
 				r.Put("/patrols/{id}/approve", patrolH.Approve)
 				r.Put("/patrols/{id}/reject", patrolH.Reject)
 			})
+
+			// Delete patrol
+			r.Delete("/patrols/{id}", patrolH.Delete)
 
 			// Master data
 			r.Route("/locations", func(r chi.Router) {
@@ -103,24 +109,31 @@ func New(cfg *config.Config, authH *handler.AuthHandler, assetH *handler.AssetHa
 				r.Get("/{id}/qr", assetH.GenerateQR)
 			})
 
-			// Users - Super Admin only
-			r.Group(func(r chi.Router) {
-				r.Use(middleware.RBACMiddleware(string(model.RoleSuperAdmin)))
-				r.Get("/users", masterH.ListUsers)
-				r.Post("/users", masterH.CreateUser)
-				r.Put("/users/{id}", masterH.UpdateUser)
-				r.Put("/patrols/{id}/ghost-edit", patrolH.GhostEdit)
-			})
+			// Roles - any authenticated user (frontend controls via permissions)
+			r.Get("/roles", roleH.List)
+			r.Get("/roles/{id}", roleH.GetByID)
+			r.Post("/roles", roleH.Create)
+			r.Put("/roles/{id}", roleH.Update)
+			r.Delete("/roles/{id}", roleH.Delete)
+			r.Get("/roles/{id}/permissions", roleH.GetPermissions)
+			r.Put("/roles/{id}/permissions", roleH.SetPermissions)
+
+			// Permissions - any authenticated user
+			r.Get("/permissions", permH.List)
+			r.Get("/permissions/modules", permH.ListByModule)
+
+			// Users - any authenticated user (frontend controls via permissions)
+			r.Get("/users", masterH.ListUsers)
+			r.Post("/users", masterH.CreateUser)
+			r.Put("/users/{id}", masterH.UpdateUser)
+			r.Put("/patrols/{id}/ghost-edit", patrolH.GhostEdit)
 
 			// Import template - all authenticated users
 			r.Get("/import/template", exportH.DownloadImportTemplate)
 
-			// Export - Super Admin only
-			r.Group(func(r chi.Router) {
-				r.Use(middleware.RBACMiddleware(string(model.RoleSuperAdmin)))
-				r.Get("/export/checksheet", exportH.ExportChecksheet)
-				r.Post("/import/assets", exportH.ImportAssets)
-			})
+			// Export - any authenticated user (frontend controls via permissions)
+			r.Get("/export/checksheet", exportH.ExportChecksheet)
+			r.Post("/import/assets", exportH.ImportAssets)
 		})
 	})
 

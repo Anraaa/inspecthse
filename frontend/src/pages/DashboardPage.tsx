@@ -302,8 +302,8 @@ export function DashboardPage() {
                 <span>All Time</span>
               </div>
             </div>
-            <div className="flex items-center gap-8">
-              <div className="h-56 w-56">
+            <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
+              <div className="h-48 w-48 sm:h-56 sm:w-56 shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -323,7 +323,7 @@ export function DashboardPage() {
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="flex-1 space-y-4">
+              <div className="w-full sm:flex-1 space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
@@ -410,10 +410,10 @@ export function DashboardPage() {
                   <h4 className="text-sm font-semibold text-gray-500 mb-3">Recent Assets</h4>
                   <div className="space-y-2">
                     {assets.map((asset) => (
-                      <div key={asset.id} className="flex items-center justify-between py-1.5">
-                        <div className="flex items-center gap-2">
+                      <div key={asset.id} className="flex items-center justify-between py-1.5 gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           <div
-                            className="w-2 h-2 rounded-full"
+                            className="w-2 h-2 rounded-full shrink-0"
                             style={{
                               backgroundColor:
                                 asset.asset_category === "APAR"
@@ -423,9 +423,9 @@ export function DashboardPage() {
                                     : theme.gradientTo,
                             }}
                           />
-                          <span className="text-sm text-gray-700">{asset.name}</span>
+                          <span className="text-sm text-gray-700 truncate">{asset.name}</span>
                         </div>
-                        <span className="text-xs text-gray-400">{asset.plant || "-"}</span>
+                        <span className="text-xs text-gray-400 shrink-0">{asset.plant || "-"}</span>
                       </div>
                     ))}
                   </div>

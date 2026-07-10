@@ -99,6 +99,29 @@ func (r *PatrolRepository) List(ctx context.Context, filter map[string]interface
 	return patrols, total, nil
 }
 
+func (r *PatrolRepository) Delete(ctx context.Context, id int64) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, "DELETE FROM patrol_attachments WHERE patrol_id = ?", id); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM patrol_details WHERE patrol_id = ?", id); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM alerts WHERE patrol_id = ?", id); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM patrols WHERE id = ?", id); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 func (r *PatrolRepository) FindByClientUUID(ctx context.Context, uuid string) (*model.Patrol, error) {
 	var p model.Patrol
 	err := r.db.GetContext(ctx, &p, "SELECT * FROM patrols WHERE client_uuid = ?", uuid)

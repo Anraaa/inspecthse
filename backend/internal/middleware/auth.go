@@ -76,3 +76,24 @@ func RBACMiddleware(roles ...string) func(http.Handler) http.Handler {
 		})
 	}
 }
+
+type PermissionChecker func(roleName string, permission string) bool
+
+func PermissionMiddleware(checker PermissionChecker, permission string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userRole, ok := r.Context().Value(UserRoleKey).(string)
+			if !ok {
+				http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+				return
+			}
+
+			if !checker(userRole, permission) {
+				http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}

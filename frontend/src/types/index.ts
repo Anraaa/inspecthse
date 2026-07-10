@@ -109,3 +109,26 @@ export interface Alert {
   resolved_at?: string;
   created_at: string;
 }
+
+export interface RoleInfo {
+  id: number;
+  name: string;
+  display_name: string;
+  description: string;
+  is_system: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoleWithPermissions extends RoleInfo {
+  permissions: Permission[];
+}
+
+export interface Permission {
+  id: number;
+  name: string;
+  display_name: string;
+  module: string;
+  description: string;
+  created_at: string;
+}

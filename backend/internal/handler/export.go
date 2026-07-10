@@ -23,8 +23,9 @@ func (h *ExportHandler) ExportChecksheet(w http.ResponseWriter, r *http.Request)
 	category := r.URL.Query().Get("category")
 	locationID, _ := strconv.ParseInt(r.URL.Query().Get("location_id"), 10, 64)
 	sectionID, _ := strconv.ParseInt(r.URL.Query().Get("section_id"), 10, 64)
+	assetID, _ := strconv.ParseInt(r.URL.Query().Get("asset_id"), 10, 64)
 
-	data, err := h.svc.ExportChecksheet(r.Context(), year, model.AssetCategory(category), locationID, sectionID)
+	data, err := h.svc.ExportChecksheet(r.Context(), year, model.AssetCategory(category), locationID, sectionID, assetID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -32,6 +33,9 @@ func (h *ExportHandler) ExportChecksheet(w http.ResponseWriter, r *http.Request)
 
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	w.Header().Set("Content-Disposition", "attachment; filename=checksheet.xlsx")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	w.Write(data)
 }
 
@@ -44,6 +48,9 @@ func (h *ExportHandler) DownloadImportTemplate(w http.ResponseWriter, r *http.Re
 
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	w.Header().Set("Content-Disposition", "attachment; filename=template_import_aset.xlsx")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	w.Write(data)
 }
 

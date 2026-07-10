@@ -9,6 +9,7 @@ import (
 type UserRepository interface {
 	FindByID(ctx context.Context, id int64) (*model.User, error)
 	FindByEmail(ctx context.Context, email string) (*model.User, error)
+	FindByNIP(ctx context.Context, nip string) (*model.User, error)
 	FindByName(ctx context.Context, name string) (*model.User, error)
 	Create(ctx context.Context, user *model.User) error
 	Update(ctx context.Context, user *model.User) error
@@ -32,7 +33,7 @@ type LocationRepository interface {
 	Create(ctx context.Context, location *model.Location) error
 	Update(ctx context.Context, location *model.Location) error
 	Delete(ctx context.Context, id int64) error
-	List(ctx context.Context) ([]model.Location, error)
+	List(ctx context.Context, offset, limit int) ([]model.Location, int, error)
 }
 
 type SectionRepository interface {
@@ -41,7 +42,7 @@ type SectionRepository interface {
 	Create(ctx context.Context, section *model.Section) error
 	Update(ctx context.Context, section *model.Section) error
 	Delete(ctx context.Context, id int64) error
-	List(ctx context.Context) ([]model.Section, error)
+	List(ctx context.Context, offset, limit int) ([]model.Section, int, error)
 }
 
 type ShiftRepository interface {
@@ -49,7 +50,7 @@ type ShiftRepository interface {
 	Create(ctx context.Context, shift *model.Shift) error
 	Update(ctx context.Context, shift *model.Shift) error
 	Delete(ctx context.Context, id int64) error
-	List(ctx context.Context) ([]model.Shift, error)
+	List(ctx context.Context, offset, limit int) ([]model.Shift, int, error)
 }
 
 type HSEParameterRepository interface {
@@ -58,13 +59,26 @@ type HSEParameterRepository interface {
 	Create(ctx context.Context, param *model.HSEParameter) error
 	Update(ctx context.Context, param *model.HSEParameter) error
 	Delete(ctx context.Context, id int64) error
-	List(ctx context.Context) ([]model.HSEParameter, error)
+	List(ctx context.Context, offset, limit int) ([]model.HSEParameter, int, error)
+}
+
+type RoleRepository interface {
+	FindByID(ctx context.Context, id int64) (*model.RoleInfo, error)
+	FindByName(ctx context.Context, name string) (*model.RoleInfo, error)
+	Create(ctx context.Context, role *model.RoleInfo) error
+	Update(ctx context.Context, role *model.RoleInfo) error
+	Delete(ctx context.Context, id int64) error
+	List(ctx context.Context, offset, limit int) ([]model.RoleInfo, int, error)
+	GetPermissions(ctx context.Context, roleID int64) ([]model.Permission, error)
+	SetPermissions(ctx context.Context, roleID int64, permissionIDs []int64) error
+	GetRoleWithPermissions(ctx context.Context, roleID int64) (*model.RoleWithPermissions, error)
 }
 
 type PatrolRepository interface {
 	FindByID(ctx context.Context, id int64) (*model.Patrol, error)
 	Create(ctx context.Context, patrol *model.Patrol) (int64, error)
 	Update(ctx context.Context, patrol *model.Patrol) error
+	Delete(ctx context.Context, id int64) error
 	List(ctx context.Context, filter map[string]interface{}, offset, limit int) ([]model.Patrol, int, error)
 	FindByClientUUID(ctx context.Context, uuid string) (*model.Patrol, error)
 }
@@ -97,4 +111,9 @@ type ActivityLogRepository interface {
 
 type ExpiringAssetRepository interface {
 	FindExpiringAssets(ctx context.Context, withinDays int) ([]model.Asset, error)
+}
+
+type PermissionRepository interface {
+	List(ctx context.Context) ([]model.Permission, error)
+	ListByModule(ctx context.Context) (map[string][]model.Permission, error)
 }

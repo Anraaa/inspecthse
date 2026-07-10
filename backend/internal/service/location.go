@@ -98,6 +98,6 @@ func (s *locationService) GenerateQRCode(ctx context.Context, locationID int64, 
 	return buf.Bytes(), nil
 }
 
-func (s *locationService) List(ctx context.Context) ([]model.Location, error) {
-	return s.repo.List(ctx)
+func (s *locationService) List(ctx context.Context, offset, limit int) ([]model.Location, int, error) {
+	return s.repo.List(ctx, offset, limit)
 }

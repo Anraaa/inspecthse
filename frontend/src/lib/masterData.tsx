@@ -48,7 +48,7 @@ const checkTypeOptions = [
   { label: "Fungsi", value: "fungsi" },
 ];
 
-const roleOptions = [
+export const roleOptions = [
   { label: "Super Admin", value: "SUPER_ADMIN" },
   { label: "K3L", value: "K3L" },
   { label: "Tim HSE", value: "TIM_HSE" },
@@ -99,7 +99,7 @@ export const resourceConfigs: Record<string, ResourceConfig> = {
     name: "Section",
     namePlural: "Sections",
     endpoint: "/sections",
-    paginated: false,
+    paginated: true,
     columns: [
       { key: "id", label: "ID", sortable: true },
       { key: "name", label: "Name", sortable: true },
@@ -115,7 +115,7 @@ export const resourceConfigs: Record<string, ResourceConfig> = {
     name: "Location",
     namePlural: "Locations",
     endpoint: "/locations",
-    paginated: false,
+    paginated: true,
     columns: [
       { key: "id", label: "ID", sortable: true },
       { key: "name", label: "Name", sortable: true },
@@ -131,7 +131,7 @@ export const resourceConfigs: Record<string, ResourceConfig> = {
     name: "Shift",
     namePlural: "Shifts",
     endpoint: "/shifts",
-    paginated: false,
+    paginated: true,
     columns: [
       { key: "id", label: "ID", sortable: true },
       { key: "name", label: "Name", sortable: true },
@@ -148,7 +148,7 @@ export const resourceConfigs: Record<string, ResourceConfig> = {
     name: "Parameter",
     namePlural: "Parameters",
     endpoint: "/parameters",
-    paginated: false,
+    paginated: true,
     columns: [
       { key: "id", label: "ID", sortable: true },
       { key: "asset_category", label: "Category", render: (v) => <span className="px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700">{v as string}</span> },
@@ -186,7 +186,7 @@ export const resourceConfigs: Record<string, ResourceConfig> = {
       { key: "name", label: "Name", type: "text", required: true },
       { key: "email", label: "Email", type: "email", required: true },
       { key: "password", label: "Password", type: "password", placeholder: "Leave empty to keep current" },
-      { key: "role", label: "Role", type: "select", required: true, options: roleOptions },
+      { key: "role", label: "Role", type: "select", required: true },
       { key: "section_id", label: "Section", type: "select", options: [] },
       { key: "is_active", label: "Active", type: "toggle" },
     ],
@@ -235,10 +235,24 @@ export function isMasterResource(resource: string): boolean {
   return resource in resourceConfigs;
 }
 
-export async function fetchReferenceData(resource: string): Promise<Record<string, { label: string; value: number }[]>> {
-  const result: Record<string, { label: string; value: number }[]> = {};
+export async function fetchReferenceData(resource: string): Promise<Record<string, { label: string; value: string | number }[]>> {
+  const result: Record<string, { label: string; value: string | number }[]> = {};
 
-  if (resource === "users" || resource === "assets") {
+  if (resource === "users") {
+    try {
+      const res = await api.get("/sections");
+      const sections = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      result.sections = sections.map((s: { id: number; name: string }) => ({ label: s.name, value: s.id }));
+    } catch { result.sections = []; }
+
+    try {
+      const res = await api.get("/roles");
+      const roles = Array.isArray(res.data) ? res.data : [];
+      result.roles = roles.map((r: { name: string; display_name: string }) => ({ label: r.display_name, value: r.name }));
+    } catch { result.roles = []; }
+  }
+
+  if (resource === "assets") {
     try {
       const res = await api.get("/sections");
       const sections = Array.isArray(res.data) ? res.data : res.data?.data || [];

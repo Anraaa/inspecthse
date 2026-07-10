@@ -34,10 +34,19 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*model.
 	return &u, nil
 }
 
+func (r *UserRepository) FindByNIP(ctx context.Context, nip string) (*model.User, error) {
+	var u model.User
+	err := r.db.GetContext(ctx, &u, "SELECT * FROM users WHERE nip = ?", nip)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+	return &u, nil
+}
+
 func (r *UserRepository) Create(ctx context.Context, user *model.User) error {
 	res, err := r.db.ExecContext(ctx,
-		"INSERT INTO users (name, email, password, role, section_id, is_active) VALUES (?, ?, ?, ?, ?, ?)",
-		user.Name, user.Email, user.Password, user.Role, user.SectionID, user.IsActive,
+		"INSERT INTO users (name, nip, email, password, role, section_id, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		user.Name, user.NIP, user.Email, user.Password, user.Role, user.SectionID, user.IsActive,
 	)
 	if err != nil {
 		return err
@@ -49,8 +58,8 @@ func (r *UserRepository) Create(ctx context.Context, user *model.User) error {
 
 func (r *UserRepository) Update(ctx context.Context, user *model.User) error {
 	_, err := r.db.ExecContext(ctx,
-		"UPDATE users SET name=?, email=?, role=?, section_id=?, is_active=? WHERE id=?",
-		user.Name, user.Email, user.Role, user.SectionID, user.IsActive, user.ID,
+		"UPDATE users SET name=?, nip=?, email=?, role=?, section_id=?, is_active=? WHERE id=?",
+		user.Name, user.NIP, user.Email, user.Role, user.SectionID, user.IsActive, user.ID,
 	)
 	return err
 }

@@ -31,7 +31,7 @@ func (r *PatrolAttachmentRepository) Create(ctx context.Context, attachment *mod
 }
 
 func (r *PatrolAttachmentRepository) ListByPatrolID(ctx context.Context, patrolID int64) ([]model.PatrolAttachment, error) {
-	var attachments []model.PatrolAttachment
+	attachments := []model.PatrolAttachment{}
 	err := r.db.SelectContext(ctx, &attachments, "SELECT * FROM patrol_attachments WHERE patrol_id = ? ORDER BY id", patrolID)
 	if err != nil {
 		return nil, err

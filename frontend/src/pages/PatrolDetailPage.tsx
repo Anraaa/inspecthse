@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
@@ -29,6 +29,7 @@ const statusBadge: Record<string, { label: string; color: string; bg: string }> 
 export function PatrolDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const theme = useThemeStore((s) => s.theme);
@@ -40,8 +41,10 @@ export function PatrolDetailPage() {
   const [ghostMode, setGhostMode] = useState(false);
   const [ghostDetails, setGhostDetails] = useState<Record<number, string>>({});
 
-  const canApprove = user?.role === "TIM_HSE" || user?.role === "SUPER_ADMIN";
+  const fromScan = searchParams.get("from") === "scan";
+  const isTimHse = user?.role === "TIM_HSE";
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const canApprove = isSuperAdmin || (isTimHse && fromScan);
 
   const { data, isLoading } = useQuery({
     queryKey: ["patrol", id],
@@ -136,7 +139,9 @@ export function PatrolDetailPage() {
     return <div className="text-center py-12 text-gray-500">Patroli tidak ditemukan</div>;
   }
 
-  const { patrol, details, attachments } = data;
+  const patrol = data.patrol;
+  const details = data.details ?? [];
+  const attachments = data.attachments ?? [];
   const badge = statusBadge[patrol.status] || statusBadge.draft;
   const isWaiting = patrol.status === "waiting_approval";
   const isRejected = patrol.status === "rejected";
@@ -159,7 +164,7 @@ export function PatrolDetailPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {isSuperAdmin && !ghostMode && (
+            {(isSuperAdmin || isTimHse) && !ghostMode && (
               <button
                 onClick={enterGhostMode}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 text-gray-600 bg-gray-100 hover:bg-gray-200"
@@ -173,15 +178,15 @@ export function PatrolDetailPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
           <div><span className="text-gray-500">Asset ID:</span> <span className="font-medium">{patrol.asset_id}</span></div>
           <div><span className="text-gray-500">Shift ID:</span> <span className="font-medium">{patrol.shift_id}</span></div>
-          <div className="col-span-2">
+          <div className="col-span-1 sm:col-span-2">
             <span className="text-gray-500">Client UUID:</span>
-            <span className="font-mono text-xs ml-2">{patrol.client_uuid}</span>
+            <span className="font-mono text-xs ml-2 break-all">{patrol.client_uuid}</span>
           </div>
           {isRejected && patrol.rejection_reason && (
-            <div className="col-span-2 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+            <div className="col-span-1 sm:col-span-2 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
               <strong>Alasan ditolak:</strong> {patrol.rejection_reason}
             </div>
           )}
@@ -197,7 +202,6 @@ export function PatrolDetailPage() {
             {details.map((d: PatrolDetail) => {
               const inputType = getParamInputType(d.hse_parameter_id);
               const isBool = inputType === "boolean";
-              const isGood = isBool ? d.value === "Ya" : true;
               return (
                 <div
                   key={d.id}
@@ -214,17 +218,28 @@ export function PatrolDetailPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {ghostMode ? (
+                    {ghostMode && isBool ? (
+                      <select
+                        value={ghostDetails[d.id] ?? d.value}
+                        onChange={(e) => setGhostDetails((prev) => ({ ...prev, [d.id]: e.target.value }))}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2"
+                        style={{ "--tw-ring-color": theme.colors[500] } as React.CSSProperties}
+                      >
+                        <option value="O">O</option>
+                        <option value="X">X</option>
+                        <option value="N/A">N/A</option>
+                      </select>
+                    ) : ghostMode ? (
                       <input
-                        type={isBool ? "text" : "text"}
+                        type="text"
                         value={ghostDetails[d.id] ?? d.value}
                         onChange={(e) => setGhostDetails((prev) => ({ ...prev, [d.id]: e.target.value }))}
                         className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2"
                         style={{ "--tw-ring-color": theme.colors[500] } as React.CSSProperties}
                       />
                     ) : isBool ? (
-                      <span className={`text-sm font-medium ${isGood ? "text-green-600" : "text-red-600"}`}>
-                        {d.value}
+                      <span className={`text-sm font-medium ${d.value === "O" || d.value === "Ya" ? "text-green-600" : d.value === "X" || d.value === "Tidak" ? "text-red-600" : "text-gray-500"}`}>
+                        {d.value || "-"}
                       </span>
                     ) : (
                       <span className="text-sm text-gray-700">{d.value || "-"}</span>
@@ -237,11 +252,11 @@ export function PatrolDetailPage() {
           </div>
 
           {ghostMode && (
-            <div className="mt-4 flex items-center gap-2">
+            <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <button
                 onClick={handleGhostSave}
                 disabled={actionLoading === "ghost"}
-                className="px-4 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-1 text-white transition-all disabled:opacity-50"
+                className="px-4 py-2 rounded-lg text-sm font-medium inline-flex items-center justify-center gap-1 text-white transition-all disabled:opacity-50"
                 style={{ backgroundColor: theme.colors[500] }}
               >
                 {actionLoading === "ghost" ? (
@@ -285,11 +300,11 @@ export function PatrolDetailPage() {
       {canApprove && isWaiting && !ghostMode && (
         <div className="bg-white rounded-2xl shadow-sm border p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Aksi Persetujuan</h2>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <button
               onClick={handleApprove}
               disabled={actionLoading === "approve"}
-              className="px-6 py-2.5 rounded-lg font-medium disabled:opacity-50 flex items-center gap-2 text-white transition-all"
+              className="px-6 py-2.5 rounded-lg font-medium disabled:opacity-50 flex items-center justify-center gap-2 text-white transition-all"
               style={{ backgroundColor: "#16a34a" }}
             >
               {actionLoading === "approve" ? (
@@ -302,7 +317,7 @@ export function PatrolDetailPage() {
             <button
               onClick={() => setShowReject(!showReject)}
               disabled={actionLoading === "reject"}
-              className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+              className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               <XCircle className="w-4 h-4" />
               Tolak
@@ -318,7 +333,7 @@ export function PatrolDetailPage() {
                 rows={3}
                 placeholder="Alasan penolakan..."
               />
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={handleReject}
                   disabled={!rejectReason.trim() || actionLoading === "reject"}

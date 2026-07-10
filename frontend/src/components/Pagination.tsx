@@ -71,7 +71,7 @@ export function Pagination({ offset, limit, total, onPage }: PaginationProps) {
         )}
 
         <button
-          onClick={() => onPage(Math.min(total - limit, offset + limit))}
+          onClick={() => onPage(offset + limit)}
           disabled={offset + limit >= total}
           className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >

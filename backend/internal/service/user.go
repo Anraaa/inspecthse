@@ -23,6 +23,10 @@ func (s *userService) Create(ctx context.Context, user *model.User) error {
 	if existing != nil {
 		return errors.New("email sudah terdaftar")
 	}
+	existing, _ = s.repo.FindByNIP(ctx, user.NIP)
+	if existing != nil {
+		return errors.New("nip sudah terdaftar")
+	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -34,7 +38,7 @@ func (s *userService) Create(ctx context.Context, user *model.User) error {
 	if err != nil {
 		return err
 	}
-	s.logSvc.Log(ctx, getCurrentUserID(ctx), "create", "user", user.ID, "", user.Email, false)
+	s.logSvc.Log(ctx, getCurrentUserID(ctx), "create", "user", user.ID, "", user.NIP, false)
 	return nil
 }
 

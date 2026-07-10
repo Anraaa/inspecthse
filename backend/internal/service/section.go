@@ -57,6 +57,6 @@ func (s *sectionService) GetByID(ctx context.Context, id int64) (*model.Section,
 	return s.repo.FindByID(ctx, id)
 }
 
-func (s *sectionService) List(ctx context.Context) ([]model.Section, error) {
-	return s.repo.List(ctx)
+func (s *sectionService) List(ctx context.Context, offset, limit int) ([]model.Section, int, error) {
+	return s.repo.List(ctx, offset, limit)
 }

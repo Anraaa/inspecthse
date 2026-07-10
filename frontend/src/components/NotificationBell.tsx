@@ -61,52 +61,68 @@ export function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-100 z-50 max-h-96 flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">Notifikasi</h3>
-            {unreadCount > 0 && (
-              <button
-                onClick={markAllAsRead}
-                className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-              >
-                <CheckCheck className="w-3.5 h-3.5" />
-                Tandai semua dibaca
-              </button>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            {alerts.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-gray-400">
-                Tidak ada notifikasi
-              </div>
-            ) : (
-              alerts.map((alert) => (
-                <button
-                  key={alert.id}
-                  onClick={() => handleAlertClick(alert)}
-                  className={cn(
-                    "w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors",
-                    !alert.is_read && "bg-blue-50/50",
-                  )}
-                >
-                  <p className={cn("text-sm", !alert.is_read ? "font-medium text-gray-900" : "text-gray-600")}>
-                    {alert.message}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">{formatDate(alert.created_at)}</p>
-                </button>
-              ))
-            )}
-          </div>
-
-          <Link
-            to="/notifications"
+        <>
+          {/* Backdrop khusus mobile, biar terasa seperti sheet & gampang ditutup */}
+          <div
+            className="fixed inset-0 z-40 sm:hidden"
             onClick={() => setIsOpen(false)}
-            className="block px-4 py-2.5 text-center text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 border-t border-gray-100 rounded-b-xl font-medium"
+          />
+
+          <div
+            className={cn(
+              // Mobile: fixed, full width dikurangi margin, gak terikat posisi tombol
+              "fixed inset-x-4 top-16 w-auto",
+              // Desktop: balik jadi dropdown relatif ke tombol bell
+              "sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2 sm:w-80",
+              "bg-white rounded-xl shadow-lg border border-gray-100 z-50 max-h-96 flex flex-col",
+            )}
           >
-            Lihat Semua
-          </Link>
-        </div>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
+              <h3 className="text-sm font-semibold text-gray-900">Notifikasi</h3>
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllAsRead}
+                  className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                  Tandai semua dibaca
+                </button>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {alerts.length === 0 ? (
+                <div className="px-4 py-8 text-center text-sm text-gray-400">
+                  Tidak ada notifikasi
+                </div>
+              ) : (
+                alerts.map((alert) => (
+                  <button
+                    key={alert.id}
+                    onClick={() => handleAlertClick(alert)}
+                    className={cn(
+                      "w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors",
+                      !alert.is_read && "bg-blue-50/50",
+                    )}
+                  >
+                    <p className={cn("text-sm", !alert.is_read ? "font-medium text-gray-900" : "text-gray-600")}>
+                      {alert.message}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">{formatDate(alert.created_at)}</p>
+                  </button>
+                ))
+              )}
+            </div>
+
+            <Link
+              to="/notifications"
+              onClick={() => setIsOpen(false)}
+              className="block px-4 py-2.5 text-center text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 border-t border-gray-100 rounded-b-xl font-medium shrink-0"
+            >
+              Lihat Semua
+            </Link>
+          </div>
+        </>
       )}
     </div>
   );

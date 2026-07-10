@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
@@ -20,7 +20,8 @@ export function InspeksiAssetPage() {
   const navigate = useNavigate();
   const [offset, setOffset] = useState(0);
   const limit = 10;
-
+  useEffect(() => { setOffset(0); }, [id]);
+ 
   // 1. Fetch asset details
   const { data: asset, isLoading: assetLoading } = useQuery({
     queryKey: ["asset-by-id", id],
@@ -165,57 +166,91 @@ export function InspeksiAssetPage() {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50">
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">ID</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Shift</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Status</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Tgl Kirim</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-500">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {patrols.map((p) => {
-                  const cfg = statusConfig[p.status] || statusConfig.draft;
-                  const Icon = cfg.icon;
-                  const isPending = p.status === "waiting_approval";
-                  return (
-                    <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50">
-                      <td className="px-4 py-3 font-mono text-xs">#{p.id}</td>
-                      <td className="px-4 py-3">{shiftMap?.[p.shift_id] ? `Shift ${shiftMap[p.shift_id]}` : `Shift #${p.shift_id}`}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.color}`}>
-                          <Icon className="w-3 h-3" />
-                          {cfg.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">
-                        {p.submitted_at ? formatDate(p.submitted_at) : "-"}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {isPending ? (
-                          <button
-                            onClick={() => navigate(`/patrols/${p.id}`)}
-                            className="px-3 py-1.5 rounded-lg text-xs font-extrabold inline-flex items-center gap-1 text-white transition-all bg-amber-500 hover:bg-amber-600 animate-pulse"
-                          >
-                            Tinjau & Validasi
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => navigate(`/patrols/${p.id}`)}
-                            className="px-3 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 text-white transition-all bg-gray-500 hover:bg-gray-600"
-                          >
-                            <Eye className="w-3 h-3" /> Detail
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {/* Mobile Card View */}
+          <div className="sm:hidden space-y-3">
+            {patrols.map((p) => {
+              const cfg = statusConfig[p.status] || statusConfig.draft;
+              const Icon = cfg.icon;
+              const isPending = p.status === "waiting_approval";
+              return (
+                <div key={p.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-mono text-xs text-gray-400">#{p.id}</span>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.color}`}>
+                      <Icon className="w-3 h-3" />
+                      {cfg.label}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 mb-1">
+                    {shiftMap?.[p.shift_id] ? `Shift ${shiftMap[p.shift_id]}` : `Shift #${p.shift_id}`}
+                  </div>
+                  <div className="text-xs text-gray-400 mb-3">
+                    {p.submitted_at ? formatDate(p.submitted_at) : "-"}
+                  </div>
+                  <button
+                    onClick={() => navigate(`/patrols/${p.id}`)}
+                    className={`w-full py-2 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-1 text-white transition-all ${isPending ? 'bg-amber-500 hover:bg-amber-600 animate-pulse' : 'bg-gray-500 hover:bg-gray-600'}`}
+                  >
+                    {isPending ? "Tinjau & Validasi" : <><Eye className="w-3 h-3" /> Detail</>}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          {/* Desktop Table View */}
+          <div className="hidden sm:block bg-white rounded-2xl shadow-sm border overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50">
+                    <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">ID</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">Shift</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">Status</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">Tgl Kirim</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {patrols.map((p) => {
+                    const cfg = statusConfig[p.status] || statusConfig.draft;
+                    const Icon = cfg.icon;
+                    const isPending = p.status === "waiting_approval";
+                    return (
+                      <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50">
+                        <td className="px-4 py-3 font-mono text-xs">#{p.id}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{shiftMap?.[p.shift_id] ? `Shift ${shiftMap[p.shift_id]}` : `Shift #${p.shift_id}`}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.color}`}>
+                            <Icon className="w-3 h-3" />
+                            {cfg.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
+                          {p.submitted_at ? formatDate(p.submitted_at) : "-"}
+                        </td>
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          {isPending ? (
+                            <button
+                              onClick={() => navigate(`/patrols/${p.id}`)}
+                              className="px-3 py-1.5 rounded-lg text-xs font-extrabold inline-flex items-center gap-1 text-white transition-all bg-amber-500 hover:bg-amber-600 animate-pulse"
+                            >
+                              Tinjau & Validasi
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => navigate(`/patrols/${p.id}`)}
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 text-white transition-all bg-gray-500 hover:bg-gray-600"
+                            >
+                              <Eye className="w-3 h-3" /> Detail
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
           <Pagination offset={offset} limit={limit} total={patrolHistoryRes?.total || 0} onPage={setOffset} />
         </>

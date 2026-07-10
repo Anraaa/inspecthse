@@ -26,16 +26,16 @@ func NewAuthService(userRepo repository.UserRepository, rdb *redis.Client, cfg *
 	return &authService{userRepo: userRepo, rdb: rdb, cfg: cfg}
 }
 
-func (s *authService) Login(ctx context.Context, email, password string) (string, string, error) {
+func (s *authService) Login(ctx context.Context, nip, password string) (string, string, error) {
 	bg := context.Background()
 
-	user, err := s.userRepo.FindByEmail(ctx, email)
+	user, err := s.userRepo.FindByNIP(ctx, nip)
 	if err != nil {
-		return "", "", errors.New("email atau password salah")
+		return "", "", errors.New("nip atau password salah")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		return "", "", errors.New("email atau password salah")
+		return "", "", errors.New("nip atau password salah")
 	}
 
 	accessExpiry, _ := time.ParseDuration(s.cfg.JWTAccessExpiry)
@@ -122,6 +122,7 @@ func (s *authService) generateJWT(user *model.User, expiry time.Duration) (strin
 	rand.Read(b)
 	claims := jwt.MapClaims{
 		"user_id": user.ID,
+		"nip":     user.NIP,
 		"email":   user.Email,
 		"role":    string(user.Role),
 		"exp":     time.Now().Add(expiry).Unix(),

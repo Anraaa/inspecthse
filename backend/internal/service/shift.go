@@ -57,6 +57,6 @@ func (s *shiftService) GetByID(ctx context.Context, id int64) (*model.Shift, err
 	return s.repo.FindByID(ctx, id)
 }
 
-func (s *shiftService) List(ctx context.Context) ([]model.Shift, error) {
-	return s.repo.List(ctx)
+func (s *shiftService) List(ctx context.Context, offset, limit int) ([]model.Shift, int, error) {
+	return s.repo.List(ctx, offset, limit)
 }

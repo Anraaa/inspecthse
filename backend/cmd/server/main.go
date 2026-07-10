@@ -56,10 +56,14 @@ func main() {
 	patrolAttachmentRepo := mysql.NewPatrolAttachmentRepository(db)
 	alertRepo := mysql.NewAlertRepository(db)
 	activityLogRepo := mysql.NewActivityLogRepository(db)
+	roleRepo := mysql.NewRoleRepository(db)
+	permRepo := mysql.NewPermissionRepository(db)
 
 	// Service initialization
 	alertSvc := service.NewAlertService(alertRepo)
 	logSvc := service.NewActivityLogService(activityLogRepo)
+	roleSvc := service.NewRoleService(roleRepo, logSvc)
+	permSvc := service.NewPermissionService(permRepo)
 	authSvc := service.NewAuthService(userRepo, rdb, cfg)
 	userSvc := service.NewUserService(userRepo, logSvc)
 	assetSvc := service.NewAssetService(assetRepo)
@@ -68,18 +72,20 @@ func main() {
 	shiftSvc := service.NewShiftService(shiftRepo, logSvc)
 	paramSvc := service.NewHSEParameterService(hseParamRepo, logSvc)
 	patrolSvc := service.NewPatrolService(patrolRepo, patrolDetailRepo, patrolAttachmentRepo, assetRepo, alertSvc, activityLogRepo, userRepo)
-	exportSvc := service.NewExportService(assetRepo, patrolRepo, patrolDetailRepo, locationRepo, sectionRepo, userRepo)
+	exportSvc := service.NewExportService(assetRepo, patrolRepo, patrolDetailRepo, locationRepo, sectionRepo, userRepo, hseParamRepo)
 	dashSvc := service.NewDashboardService(patrolRepo, assetRepo, userRepo)
 	expiredAssetSvc := service.NewExpiredAssetService(assetRepo, alertSvc)
 
 	// Handler initialization
-	authH := handler.NewAuthHandler(authSvc)
+	authH := handler.NewAuthHandler(authSvc, roleSvc)
 	assetH := handler.NewAssetHandler(assetSvc, locationSvc)
 	patrolH := handler.NewPatrolHandler(patrolSvc)
 	masterH := handler.NewMasterDataHandler(locationSvc, sectionSvc, shiftSvc, paramSvc, userSvc)
 	dashH := handler.NewDashboardHandler(dashSvc)
 	exportH := handler.NewExportHandler(exportSvc)
 	alertH := handler.NewAlertHandler(alertSvc)
+	roleH := handler.NewRoleHandler(roleSvc)
+	permH := handler.NewPermissionHandler(permSvc)
 
 	// Run expired asset check on startup
 	go func() {
@@ -88,7 +94,7 @@ func main() {
 		}
 	}()
 
-	r := router.New(cfg, authH, assetH, patrolH, masterH, dashH, exportH, alertH)
+	r := router.New(cfg, authH, assetH, patrolH, masterH, dashH, exportH, alertH, roleH, permH)
 
 	addr := ":" + cfg.ServerPort
 	logger.Info().Str("addr", addr).Msg("server starting")

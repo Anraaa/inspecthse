@@ -26,7 +26,7 @@ export function MasterDataPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editRow, setEditRow] = useState<Record<string, unknown> | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Record<string, unknown> | null>(null);
-  const [referenceData, setReferenceData] = useState<Record<string, { label: string; value: number }[]>>({});
+  const [referenceData, setReferenceData] = useState<Record<string, { label: string; value: string | number }[]>>({});
 
   const fetchData = useCallback(async () => {
     if (!config) return;
@@ -83,10 +83,10 @@ export function MasterDataPage() {
         
         {/* Title and Add Button Row */}
         <div className="flex items-center justify-between w-full lg:w-auto gap-4">
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">{config.namePlural}</h1>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">{config.namePlural}</h1>
           <button
             onClick={() => { setEditRow(null); setModalOpen(true); }}
-            className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white rounded-xl transition-all hover:opacity-90 shadow-md shadow-primary-500/10"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white rounded-xl transition-all hover:opacity-90 shadow-md shadow-primary-500/10 shrink-0"
             style={{ backgroundColor: theme.colors[600] }}
           >
             <Plus className="w-4 h-4" />

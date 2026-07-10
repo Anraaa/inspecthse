@@ -147,7 +147,7 @@ export function InspeksiLapanganPage() {
     const valLower = value.toLowerCase().trim();
     
     if (inputType === "boolean") {
-      return valLower === "tidak" || valLower === "false";
+      return valLower === "x";
     }
     if (inputType === "numeric") {
       const num = parseFloat(value);
@@ -393,7 +393,7 @@ export function InspeksiLapanganPage() {
           </div>
 
           {locationId && location && (
-            <div className="mt-5 pt-4 border-t border-gray-100/70 grid grid-cols-2 gap-y-3 gap-x-4 text-xs">
+            <div className="mt-5 pt-4 border-t border-gray-100/70 grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4 text-xs">
               <div>
                 <p className="text-gray-400 font-medium mb-0.5">Nama Lokasi</p>
                 <p className="font-bold text-gray-800 text-sm">{location.name}</p>
@@ -402,7 +402,7 @@ export function InspeksiLapanganPage() {
                 <p className="text-gray-400 font-medium mb-0.5">Jumlah Aset</p>
                 <p className="font-bold text-emerald-600 text-sm">{assets.length} Aset</p>
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 sm:col-span-2">
                 <p className="text-gray-400 font-medium mb-0.5">Deskripsi Lokasi</p>
                 <p className="font-medium text-gray-600 leading-relaxed truncate">{location.description || "-"}</p>
               </div>
@@ -410,7 +410,7 @@ export function InspeksiLapanganPage() {
           )}
 
           {assetId && singleAsset && (
-            <div className="mt-5 pt-4 border-t border-gray-100/70 grid grid-cols-2 gap-y-3 gap-x-4 text-xs">
+            <div className="mt-5 pt-4 border-t border-gray-100/70 grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4 text-xs">
               <div>
                 <p className="text-gray-400 font-medium mb-0.5">Nama Aset</p>
                 <p className="font-bold text-gray-800 text-sm">{singleAsset.name}</p>
@@ -427,7 +427,7 @@ export function InspeksiLapanganPage() {
               </div>
               <div>
                 <p className="text-gray-400 font-medium mb-0.5">Kode QR</p>
-                <p className="font-mono text-gray-600">{singleAsset.qr_code}</p>
+                <p className="font-mono text-gray-600 break-all">{singleAsset.qr_code}</p>
               </div>
             </div>
           )}
@@ -520,28 +520,42 @@ export function InspeksiLapanganPage() {
                     </div>
                     {/* Render input elements based on parameter type */}
                     {param.input_type === "boolean" && (
-                      <div className="flex gap-3 mt-2">
+                      <div className="flex gap-2 mt-2">
                         <button
                           type="button"
-                          onClick={() => updateValue(asset.id, param.id, "Ya", param.input_type)}
-                          className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border ${
-                            entry.value === "Ya"
+                          onClick={() => updateValue(asset.id, param.id, "O", param.input_type)}
+                          className={`flex-1 py-3 rounded-2xl text-sm font-black tracking-wider transition-all border ${
+                            entry.value === "O"
                               ? "bg-green-600 border-green-600 text-white shadow-md shadow-green-500/20"
                               : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
                           }`}
                         >
-                          Ya
+                          <span className="text-lg">O</span>
+                          <span className="block text-[10px] font-normal opacity-80">OK</span>
                         </button>
                         <button
                           type="button"
-                          onClick={() => updateValue(asset.id, param.id, "Tidak", param.input_type)}
-                          className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border ${
-                            entry.value === "Tidak"
+                          onClick={() => updateValue(asset.id, param.id, "X", param.input_type)}
+                          className={`flex-1 py-3 rounded-2xl text-sm font-black tracking-wider transition-all border ${
+                            entry.value === "X"
                               ? "bg-red-600 border-red-600 text-white shadow-md shadow-red-500/20"
                               : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
                           }`}
                         >
-                          Tidak
+                          <span className="text-lg">X</span>
+                          <span className="block text-[10px] font-normal opacity-80">Tidak OK</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateValue(asset.id, param.id, "N/A", param.input_type)}
+                          className={`flex-1 py-3 rounded-2xl text-sm font-black tracking-wider transition-all border ${
+                            entry.value === "N/A"
+                              ? "bg-gray-600 border-gray-600 text-white shadow-md shadow-gray-500/20"
+                              : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          <span className="text-lg">N/A</span>
+                          <span className="block text-[10px] font-normal opacity-80">Tidak Berlaku</span>
                         </button>
                       </div>
                     )}

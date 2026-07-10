@@ -61,6 +61,6 @@ func (s *hseParameterService) GetByAssetCategory(ctx context.Context, category m
 	return s.repo.FindByAssetCategory(ctx, category)
 }
 
-func (s *hseParameterService) List(ctx context.Context) ([]model.HSEParameter, error) {
-	return s.repo.List(ctx)
+func (s *hseParameterService) List(ctx context.Context, offset, limit int) ([]model.HSEParameter, int, error) {
+	return s.repo.List(ctx, offset, limit)
 }

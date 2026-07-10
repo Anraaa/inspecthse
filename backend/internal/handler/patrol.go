@@ -148,6 +148,23 @@ func (h *PatrolHandler) Reject(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]string{"message": "patrol ditolak"})
 }
 
+func (h *PatrolHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	userRole, _ := r.Context().Value(middleware.UserRoleKey).(string)
+	if userRole != string(model.RoleSuperAdmin) {
+		respondError(w, http.StatusForbidden, "hanya super admin yang dapat menghapus patroli")
+		return
+	}
+
+	id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	userID := r.Context().Value(middleware.UserIDKey).(int64)
+
+	if err := h.svc.Delete(r.Context(), id, userID); err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]string{"message": "patrol berhasil dihapus"})
+}
+
 func (h *PatrolHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	patrol, err := h.svc.GetByID(r.Context(), id)
@@ -207,6 +224,12 @@ func (h *PatrolHandler) List(w http.ResponseWriter, r *http.Request) {
 		if id, err := strconv.ParseInt(locationID, 10, 64); err == nil {
 			filter["location_id"] = id
 		}
+	}
+	if dateFrom := r.URL.Query().Get("date_from"); dateFrom != "" {
+		filter["date_from"] = dateFrom + " 00:00:00"
+	}
+	if dateTo := r.URL.Query().Get("date_to"); dateTo != "" {
+		filter["date_to"] = dateTo + " 23:59:59"
 	}
 
 	patrols, total, err := h.svc.List(r.Context(), filter, offset, limit)

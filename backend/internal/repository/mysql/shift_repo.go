@@ -47,11 +47,17 @@ func (r *ShiftRepository) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
-func (r *ShiftRepository) List(ctx context.Context) ([]model.Shift, error) {
-	var shifts []model.Shift
-	err := r.db.SelectContext(ctx, &shifts, "SELECT * FROM shifts ORDER BY id")
+func (r *ShiftRepository) List(ctx context.Context, offset, limit int) ([]model.Shift, int, error) {
+	var total int
+	err := r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM shifts")
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return shifts, nil
+
+	var shifts []model.Shift
+	err = r.db.SelectContext(ctx, &shifts, "SELECT * FROM shifts ORDER BY id LIMIT ? OFFSET ?", limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	return shifts, total, nil
 }

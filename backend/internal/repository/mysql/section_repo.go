@@ -56,11 +56,17 @@ func (r *SectionRepository) FindByName(ctx context.Context, name string) (*model
 	return &s, nil
 }
 
-func (r *SectionRepository) List(ctx context.Context) ([]model.Section, error) {
-	var sections []model.Section
-	err := r.db.SelectContext(ctx, &sections, "SELECT * FROM sections ORDER BY id")
+func (r *SectionRepository) List(ctx context.Context, offset, limit int) ([]model.Section, int, error) {
+	var total int
+	err := r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM sections")
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return sections, nil
+
+	var sections []model.Section
+	err = r.db.SelectContext(ctx, &sections, "SELECT * FROM sections ORDER BY id LIMIT ? OFFSET ?", limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	return sections, total, nil
 }

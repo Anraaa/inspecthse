@@ -65,11 +65,17 @@ func (r *LocationRepository) FindByName(ctx context.Context, name string) (*mode
 	return &l, nil
 }
 
-func (r *LocationRepository) List(ctx context.Context) ([]model.Location, error) {
-	var locations []model.Location
-	err := r.db.SelectContext(ctx, &locations, "SELECT * FROM locations ORDER BY id")
+func (r *LocationRepository) List(ctx context.Context, offset, limit int) ([]model.Location, int, error) {
+	var total int
+	err := r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM locations")
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return locations, nil
+
+	var locations []model.Location
+	err = r.db.SelectContext(ctx, &locations, "SELECT * FROM locations ORDER BY id LIMIT ? OFFSET ?", limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	return locations, total, nil
 }

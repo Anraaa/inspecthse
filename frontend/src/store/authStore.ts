@@ -1,10 +1,10 @@
 import { create } from "zustand";
 import api from "@/lib/axios";
-import type { Role } from "@/types";
+import type { Role, Permission } from "@/types";
 
 interface User {
   user_id: number;
-  email: string;
+  nip: string;
   role: Role;
 }
 
@@ -13,10 +13,13 @@ interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  permissions: string[];
+  login: (nip: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
   setTokens: (access: string, refresh: string) => void;
+  fetchPermissions: () => Promise<void>;
+  hasPermission: (perm: string) => boolean;
 }
 
 function decodeJWT(token: string): User | null {
@@ -25,7 +28,7 @@ function decodeJWT(token: string): User | null {
     const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
     return {
       user_id: decoded.user_id,
-      email: decoded.email,
+      nip: decoded.nip,
       role: decoded.role,
     };
   } catch {
@@ -40,23 +43,35 @@ function loadTokens(): { access: string | null; refresh: string | null } {
   };
 }
 
+const initialUser = (() => {
+  const { access } = loadTokens();
+  return access ? decodeJWT(access) : null;
+})();
+
+function initPermissions(): string[] {
+  const cached = localStorage.getItem("user_permissions");
+  if (cached) {
+    try { return JSON.parse(cached); } catch { }
+  }
+  return [];
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
-  user: (() => {
-    const { access } = loadTokens();
-    return access ? decodeJWT(access) : null;
-  })(),
+  user: initialUser,
   accessToken: loadTokens().access,
   refreshToken: loadTokens().refresh,
   isAuthenticated: !!loadTokens().access,
+  permissions: initPermissions(),
 
-  login: async (email: string, password: string) => {
-    const res = await api.post("/auth/login", { email, password });
+  login: async (nip: string, password: string) => {
+    const res = await api.post("/auth/login", { nip, password });
     const { access_token, refresh_token } = res.data;
     localStorage.setItem("access_token", access_token);
     localStorage.setItem("refresh_token", refresh_token);
     const user = decodeJWT(access_token);
     if (user?.role) localStorage.setItem("user_role", user.role);
     set({ user, accessToken: access_token, refreshToken: refresh_token, isAuthenticated: true });
+    await get().fetchPermissions();
   },
 
   logout: async () => {
@@ -68,7 +83,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
-    set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
+    set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, permissions: [] });
   },
 
   refresh: async () => {
@@ -81,6 +96,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem("refresh_token", refresh_token);
       const user = decodeJWT(access_token);
       set({ user, accessToken: access_token, refreshToken: refresh_token });
+      await get().fetchPermissions();
     } catch {
       get().logout();
       throw new Error("refresh failed");
@@ -92,5 +108,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     localStorage.setItem("refresh_token", refresh);
     const user = decodeJWT(access);
     set({ user, accessToken: access, refreshToken: refresh, isAuthenticated: true });
+  },
+
+  fetchPermissions: async () => {
+    try {
+      const res = await api.get("/auth/permissions");
+      const perms = Array.isArray(res.data) ? res.data.map((p: Permission) => p.name) : [];
+      localStorage.setItem("user_permissions", JSON.stringify(perms));
+      set({ permissions: perms });
+    } catch {
+      set({ permissions: [] });
+    }
+  },
+
+  hasPermission: (perm: string) => {
+    return get().permissions.includes(perm);
   },
 }));

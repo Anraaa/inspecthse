@@ -46,7 +46,7 @@ func (r *PatrolDetailRepository) Update(ctx context.Context, detail *model.Patro
 }
 
 func (r *PatrolDetailRepository) ListByPatrolID(ctx context.Context, patrolID int64) ([]model.PatrolDetail, error) {
-	var details []model.PatrolDetail
+	details := []model.PatrolDetail{}
 	err := r.db.SelectContext(ctx, &details, "SELECT * FROM patrol_details WHERE patrol_id = ? ORDER BY id", patrolID)
 	if err != nil {
 		return nil, err

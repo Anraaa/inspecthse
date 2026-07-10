@@ -7,7 +7,7 @@ interface FormModalProps {
   title: string;
   fields: FormField[];
   initialData: Record<string, unknown> | null;
-  referenceData?: Record<string, { label: string; value: number }[]>;
+  referenceData?: Record<string, { label: string; value: string | number }[]>;
   onSubmit: (data: Record<string, unknown>) => Promise<void>;
   onClose: () => void;
 }
@@ -60,6 +60,7 @@ export function FormModal({ title, fields, initialData, referenceData, onSubmit,
     if (field.key === "section_id" && referenceData?.sections) return referenceData.sections;
     if (field.key === "location_id" && referenceData?.locations) return referenceData.locations;
     if (field.key === "pic_id" && referenceData?.pic) return referenceData.pic;
+    if (field.key === "role" && referenceData?.roles) return referenceData.roles;
     return [];
   };
 

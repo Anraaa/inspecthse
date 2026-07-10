@@ -1,13 +1,15 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { InstallPWA } from "@/components/InstallPWA";
 import { OnlineStatus } from "@/components/OnlineStatus";
 import { PageSkeleton } from "@/components/Skeleton";
+import { useAuthStore } from "@/store/authStore";
 
 const LoginPage = lazy(() => import("@/pages/LoginPage").then((m) => ({ default: m.LoginPage })));
 const DashboardPage = lazy(() => import("@/pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
+const RoleListPage = lazy(() => import("@/pages/RoleListPage").then((m) => ({ default: m.RoleListPage })));
 const ScanPage = lazy(() => import("@/pages/ScanPage").then((m) => ({ default: m.ScanPage })));
 const InspeksiLapanganPage = lazy(() => import("@/pages/InspeksiLapanganPage").then((m) => ({ default: m.InspeksiLapanganPage })));
 const InspeksiAssetPage = lazy(() => import("@/pages/InspeksiAssetPage").then((m) => ({ default: m.InspeksiAssetPage })));
@@ -25,16 +27,27 @@ function SuspenseWrapper({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const fetchPermissions = useAuthStore((s) => s.fetchPermissions);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchPermissions();
+    }
+  }, [isAuthenticated, fetchPermissions]);
+
   return (
     <BrowserRouter>
       <OnlineStatus />
       <InstallPWA />
       <Routes>
         <Route path="/login" element={<SuspenseWrapper><LoginPage /></SuspenseWrapper>} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<SuspenseWrapper><DashboardPage /></SuspenseWrapper>} />
+            <Route path="/roles" element={<SuspenseWrapper><RoleListPage /></SuspenseWrapper>} />
             <Route path="/scan/:qrCode" element={<SuspenseWrapper><ScanPage /></SuspenseWrapper>} />
             <Route path="/scan" element={<SuspenseWrapper><ScanPage /></SuspenseWrapper>} />
             <Route path="/inspeksi-lapangan" element={<SuspenseWrapper><InspeksiLapanganPage /></SuspenseWrapper>} />

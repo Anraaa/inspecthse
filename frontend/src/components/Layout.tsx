@@ -9,6 +9,7 @@ import {
   Database,
   Users,
   FileSpreadsheet,
+  Shield,
   LogOut,
   Menu,
   X,
@@ -21,20 +22,21 @@ import { useDarkMode } from "@/lib/darkMode";
 import { NotificationBell } from "./NotificationBell";
 
 const navItems = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["SUPER_ADMIN", "K3L", "TIM_HSE"] as const },
-  { to: "/scan", label: "Scan QR", icon: Scan, roles: ["K3L", "TIM_HSE"] as const },
-  { to: "/inspeksi-lapangan", label: "Inspeksi Lapangan", icon: ClipboardCheck, roles: ["K3L"] as const },
-  { to: "/patrols", label: "Patroli", icon: ClipboardCheck, roles: ["K3L", "TIM_HSE", "SUPER_ADMIN"] as const },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permissions: ["dashboard.view"] as const },
+  { to: "/scan", label: "Scan QR", icon: Scan, permissions: ["scan.view"] as const },
+  { to: "/inspeksi-lapangan", label: "Inspeksi Lapangan", icon: ClipboardCheck, permissions: ["inspeksi.lapangan"] as const },
+  { to: "/patrols", label: "Patroli", icon: ClipboardCheck, permissions: ["patrol.view", "patrol.create"] as const },
 
-  { to: "/sections", label: "Master Data", icon: Database, roles: ["SUPER_ADMIN"] as const },
-  { to: "/users", label: "Users", icon: Users, roles: ["SUPER_ADMIN"] as const },
-  { to: "/export-hse", label: "Export HSE", icon: FileSpreadsheet, roles: ["SUPER_ADMIN"] as const },
+  { to: "/sections", label: "Master Data", icon: Database, permissions: ["master-data.view"] as const },
+  { to: "/roles", label: "Role Management", icon: Shield, permissions: ["roles.view"] as const },
+  { to: "/users", label: "Users", icon: Users, permissions: ["users.view"] as const },
+  { to: "/export-hse", label: "Export HSE", icon: FileSpreadsheet, permissions: ["export.view"] as const },
 ];
 
 export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout, hasPermission } = useAuthStore();
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
   const { isDark, toggle: toggleDark } = useDarkMode();
@@ -88,7 +90,7 @@ export function Layout() {
 
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
           {navItems
-            .filter((item) => user && (item.roles as readonly string[]).includes(user.role))
+            .filter((item) => item.permissions.some((p) => hasPermission(p)))
             .map((item) => {
               const active = isActive(item.to);
               return (
@@ -199,11 +201,11 @@ export function Layout() {
                 className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
                 style={{ background: `linear-gradient(135deg, ${theme.colors[500]}, ${theme.colors[400]})` }}
               >
-                {user?.email ? user.email[0].toUpperCase() : "U"}
+                {user?.nip ? user.nip[0].toUpperCase() : "U"}
               </div>
               <div className="hidden sm:block">
                 <p className="text-sm font-medium text-gray-900 leading-tight">
-                  {user?.email?.split("@")[0] || "User"}
+                  {user?.nip || "User"}
                 </p>
                 <p className="text-xs text-gray-400 leading-tight">{user?.role?.replace(/_/g, " ") || ""}</p>
               </div>

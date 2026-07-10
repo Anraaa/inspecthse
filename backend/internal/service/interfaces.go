@@ -7,7 +7,7 @@ import (
 )
 
 type AuthService interface {
-	Login(ctx context.Context, email, password string) (accessToken, refreshToken string, err error)
+	Login(ctx context.Context, nip, password string) (accessToken, refreshToken string, err error)
 	RefreshToken(ctx context.Context, refreshToken string) (newAccessToken, newRefreshToken string, err error)
 	Logout(ctx context.Context, userID int64, refreshToken string) error
 }
@@ -36,7 +36,7 @@ type LocationService interface {
 	GetByID(ctx context.Context, id int64) (*model.Location, error)
 	GetByQRCode(ctx context.Context, qrCode string) (*model.Location, error)
 	GenerateQRCode(ctx context.Context, locationID int64, baseURL string) ([]byte, error)
-	List(ctx context.Context) ([]model.Location, error)
+	List(ctx context.Context, offset, limit int) ([]model.Location, int, error)
 }
 
 type SectionService interface {
@@ -44,7 +44,7 @@ type SectionService interface {
 	Update(ctx context.Context, section *model.Section) error
 	Delete(ctx context.Context, id int64) error
 	GetByID(ctx context.Context, id int64) (*model.Section, error)
-	List(ctx context.Context) ([]model.Section, error)
+	List(ctx context.Context, offset, limit int) ([]model.Section, int, error)
 }
 
 type ShiftService interface {
@@ -52,7 +52,7 @@ type ShiftService interface {
 	Update(ctx context.Context, shift *model.Shift) error
 	Delete(ctx context.Context, id int64) error
 	GetByID(ctx context.Context, id int64) (*model.Shift, error)
-	List(ctx context.Context) ([]model.Shift, error)
+	List(ctx context.Context, offset, limit int) ([]model.Shift, int, error)
 }
 
 type HSEParameterService interface {
@@ -61,7 +61,18 @@ type HSEParameterService interface {
 	Delete(ctx context.Context, id int64) error
 	GetByID(ctx context.Context, id int64) (*model.HSEParameter, error)
 	GetByAssetCategory(ctx context.Context, category model.AssetCategory) ([]model.HSEParameter, error)
-	List(ctx context.Context) ([]model.HSEParameter, error)
+	List(ctx context.Context, offset, limit int) ([]model.HSEParameter, int, error)
+}
+
+type RoleService interface {
+	List(ctx context.Context, offset, limit int) ([]model.RoleInfo, int, error)
+	GetByID(ctx context.Context, id int64) (*model.RoleWithPermissions, error)
+	Create(ctx context.Context, role *model.RoleInfo) error
+	Update(ctx context.Context, role *model.RoleInfo) error
+	Delete(ctx context.Context, id int64) error
+	GetPermissions(ctx context.Context, roleID int64) ([]model.Permission, error)
+	SetPermissions(ctx context.Context, roleID int64, permissionIDs []int64) error
+	GetPermissionsByRoleName(ctx context.Context, roleName string) ([]model.Permission, error)
 }
 
 type PatrolDetailResponse struct {
@@ -75,6 +86,7 @@ type PatrolService interface {
 	Submit(ctx context.Context, patrolID int64) error
 	Approve(ctx context.Context, patrolID, approvedBy int64) error
 	Reject(ctx context.Context, patrolID, rejectedBy int64, reason string) error
+	Delete(ctx context.Context, patrolID, userID int64) error
 	GetByID(ctx context.Context, id int64) (*PatrolDetailResponse, error)
 	List(ctx context.Context, filter map[string]interface{}, offset, limit int) ([]model.Patrol, int, error)
 	GhostEdit(ctx context.Context, patrolID int64, details []model.PatrolDetail, editedBy int64) error
@@ -101,7 +113,7 @@ type ActivityLogService interface {
 }
 
 type ExportService interface {
-	ExportChecksheet(ctx context.Context, year int, category model.AssetCategory, locationID, sectionID int64) ([]byte, error)
+	ExportChecksheet(ctx context.Context, year int, category model.AssetCategory, locationID, sectionID, assetID int64) ([]byte, error)
 	ImportAssets(ctx context.Context, file []byte) (*ImportResult, error)
 	DownloadImportTemplate(ctx context.Context) ([]byte, error)
 }
@@ -122,4 +134,9 @@ type DashboardService interface {
 	GetSuperAdminStats(ctx context.Context) (map[string]interface{}, error)
 	GetK3LStats(ctx context.Context, userID int64) (map[string]interface{}, error)
 	GetTimHSEStats(ctx context.Context) (map[string]interface{}, error)
+}
+
+type PermissionService interface {
+	List(ctx context.Context) ([]model.Permission, error)
+	ListByModule(ctx context.Context) (map[string][]model.Permission, error)
 }

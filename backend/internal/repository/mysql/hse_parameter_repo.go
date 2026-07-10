@@ -66,11 +66,17 @@ func (r *HSEParameterRepository) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
-func (r *HSEParameterRepository) List(ctx context.Context) ([]model.HSEParameter, error) {
-	var params []model.HSEParameter
-	err := r.db.SelectContext(ctx, &params, "SELECT * FROM hse_parameters ORDER BY asset_category, sort_order")
+func (r *HSEParameterRepository) List(ctx context.Context, offset, limit int) ([]model.HSEParameter, int, error) {
+	var total int
+	err := r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM hse_parameters")
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return params, nil
+
+	var params []model.HSEParameter
+	err = r.db.SelectContext(ctx, &params, "SELECT * FROM hse_parameters ORDER BY asset_category, sort_order LIMIT ? OFFSET ?", limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	return params, total, nil
 }
