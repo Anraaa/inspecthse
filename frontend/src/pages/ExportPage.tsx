@@ -386,7 +386,7 @@ export function ExportPage() {
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Export & Import HSE</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Kelola data dan checksheet tahunan K3L PT. INSPECT HSE melalui utilitas impor/ekspor berkas Excel.
+            Kelola data dan checksheet tahunan K3L melalui utilitas impor/ekspor berkas Excel.
           </p>
         </div>
 

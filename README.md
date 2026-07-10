@@ -1,6 +1,6 @@
 # InspectHSE
 
-Sistem Manajemen Inspeksi K3L (Keselamatan, Kesehatan Kerja, dan Lingkungan) berbasis web untuk PT. INSPECT HSE.
+Sistem Manajemen Inspeksi K3L (Keselamatan, Kesehatan Kerja, dan Lingkungan) berbasis web.
 
 ## Fitur
 

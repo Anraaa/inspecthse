@@ -98,7 +98,7 @@ func (s *exportService) ExportChecksheet(ctx context.Context, year int, category
 		title += " - " + sectionName
 	}
 
-	f.SetCellValue(sheetName, "A1", "PT. INSPECT HSE")
+	f.SetCellValue(sheetName, "A1", "LAPORAN INSPEKSI HSE")
 	f.SetCellValue(sheetName, "A2", title)
 
 	headerStyle, _ := f.NewStyle(&excelize.Style{
@@ -878,7 +878,7 @@ func (s *exportService) DownloadImportTemplate(ctx context.Context) ([]byte, err
 	f.SetSheetName("Sheet1", sheet)
 
 	// Write instruction header
-	f.SetCellValue(sheet, "A1", "TEMPLATE IMPORT MASTER DATA ASET - PT. INSPECT HSE")
+	f.SetCellValue(sheet, "A1", "TEMPLATE IMPORT MASTER DATA ASET")
 	f.SetCellValue(sheet, "A2", "Isi data sesuai format di bawah. Kolom bertanda * wajib diisi.")
 	f.SetCellValue(sheet, "A3", "Kategori yang valid: APAR, HYDRANT, FIRE_ALARM")
 	f.MergeCell(sheet, "A1", "I1")
