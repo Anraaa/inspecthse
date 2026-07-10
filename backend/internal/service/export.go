@@ -410,21 +410,21 @@ func (s *exportService) exportAPARChecksheet(ctx context.Context, f *excelize.Fi
 		lower := strings.ToLower(p.ParameterName)
 		switch {
 		case lower == "tuas":
-			colMap[1].ParamID = p.ID  // B: Tuas
+			colMap[1].ParamID = p.ID // B: Tuas
 		case lower == "segel tuas":
-			colMap[2].ParamID = p.ID  // C: Segel Tuas
+			colMap[2].ParamID = p.ID // C: Segel Tuas
 		case lower == "pin":
-			colMap[3].ParamID = p.ID  // D: Pin
+			colMap[3].ParamID = p.ID // D: Pin
 		case lower == "selang":
-			colMap[4].ParamID = p.ID  // E: Selang
+			colMap[4].ParamID = p.ID // E: Selang
 		case lower == "nozzle":
-			colMap[5].ParamID = p.ID  // F: Nozzle
+			colMap[5].ParamID = p.ID // F: Nozzle
 		case lower == "tekanan/isi":
-			colMap[6].ParamID = p.ID  // G: Tekanan/Isi
+			colMap[6].ParamID = p.ID // G: Tekanan/Isi
 		case lower == "tabung":
-			colMap[7].ParamID = p.ID  // H: Tabung
+			colMap[7].ParamID = p.ID // H: Tabung
 		case lower == "catatan tambahan":
-			colMap[9].ParamID = p.ID  // J: Keterangan
+			colMap[9].ParamID = p.ID // J: Keterangan
 		}
 	}
 
